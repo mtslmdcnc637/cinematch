@@ -10,7 +10,7 @@ import { supabaseService } from './services/supabaseService';
 import { supabase } from './lib/supabase';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Library, Sparkles, User, Check, Star, Calendar, Clapperboard, Info, PlayCircle, Bookmark, Trash2, Lightbulb, RefreshCw, Search, Share2, Bot, X, Users, UserPlus } from 'lucide-react';
+import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Library, Sparkles, User, Check, Star, Calendar, Clapperboard, Info, PlayCircle, Bookmark, Trash2, Lightbulb, RefreshCw, Search, Share2, Bot, X, Users, UserPlus, Bell } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 
 export default function App() {
@@ -46,11 +46,28 @@ export default function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   
+  // Notification Preferences
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    notify_loved: true,
+    notify_liked: false,
+    notify_disliked: false,
+    notify_skipped: false,
+    notify_watchlist: false
+  });
+
   // Level Up State
   const [userProfile, setUserProfile] = useState<UserProfile>({ xp: 0, level: 1 });
   const [showLevelUpModal, setShowLevelUpModal] = useState(false);
   const [newLevelData, setNewLevelData] = useState<any>(null);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      supabaseService.getNotifications(user.id).then(setNotifications).catch(err => console.error("Error fetching notifications:", err));
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -71,6 +88,24 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      supabaseService.getNotificationPreferences(user.id).then(prefs => {
+        if (prefs) setNotificationPrefs(prefs);
+      }).catch(err => console.error("Error fetching preferences:", err));
+    }
+  }, [user]);
+
+  const handleUpdatePreference = async (key: string, value: boolean) => {
+    const newPrefs = { ...notificationPrefs, [key]: value };
+    setNotificationPrefs(newPrefs);
+    if (user) {
+      await supabaseService.updateNotificationPreferences(user.id, { [key]: value });
+      toast.success('Preferências salvas!');
+    }
+  };
+
 
   useEffect(() => {
     if (user) {
@@ -611,6 +646,16 @@ ${JSON.stringify(exportData, null, 2)}`;
                 })}
               </nav>
               <button
+                onClick={() => setShowNotificationsModal(true)}
+                className="relative w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors"
+                title="Notificações"
+              >
+                <Bell className="w-5 h-5 text-gray-300" />
+                {notifications.some(n => !n.is_read) && (
+                  <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full" />
+                )}
+              </button>
+              <button
                 onClick={() => setShowHelpModal(true)}
                 className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors"
                 title="Como funciona"
@@ -672,6 +717,33 @@ ${JSON.stringify(exportData, null, 2)}`;
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Notifications Modal */}
+      {showNotificationsModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl p-8 max-w-md w-full max-h-[80vh] overflow-y-auto">
+            <h2 className="text-2xl font-bold text-white mb-4">Notificações</h2>
+            {notifications.length === 0 ? (
+              <p className="text-gray-400">Nenhuma notificação.</p>
+            ) : (
+              <div className="space-y-4">
+                {notifications.map((n) => (
+                  <div key={n.id} className={`p-4 rounded-lg border ${n.is_read ? 'bg-white/5 border-white/10' : 'bg-purple-900/20 border-purple-500/30'}`}>
+                    <p className="text-white">{n.message}</p>
+                    <p className="text-xs text-gray-400 mt-2">{new Date(n.created_at).toLocaleDateString()}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setShowNotificationsModal(false)}
+              className="w-full py-3 mt-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Help Modal */}
       <AnimatePresence>
@@ -784,7 +856,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto text-center py-12"
+                  className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto text-center py-12 px-4"
                 >
                   <div className="mb-8 relative">
                     <div className="absolute inset-0 bg-purple-500 blur-3xl opacity-20 rounded-full" />
@@ -792,18 +864,38 @@ ${JSON.stringify(exportData, null, 2)}`;
                       <Sparkles className="w-16 h-16 text-purple-400" />
                     </div>
                   </div>
-                  <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tighter font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50">
-                    Bem-vindo ao CineMatch!
+                  
+                  <h2 className="text-5xl md:text-6xl font-bold mb-6 tracking-tighter font-display text-white">
+                    Nunca mais brigue para escolher um filme!
                   </h2>
-                  <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed">
-                    Sua jornada cinematográfica começa aqui. Descubra filmes perfeitos, suba de nível avaliando e conecte-se com amigos.
+                  <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto leading-relaxed">
+                    O CineMatch ajuda você e seus amigos a descobrirem filmes que todo mundo vai amar. É fácil, divertido e acaba com a dúvida na hora de assistir algo novo.
                   </p>
-                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+
+                  <div className="grid md:grid-cols-3 gap-6 mb-12 w-full">
+                    <div className="glass-card p-6 rounded-2xl border border-white/10">
+                      <div className="text-3xl mb-4">🍿</div>
+                      <h3 className="font-bold text-lg mb-2">Descubra</h3>
+                      <p className="text-sm text-gray-400">Veja filmes que combinam com o seu gosto.</p>
+                    </div>
+                    <div className="glass-card p-6 rounded-2xl border border-white/10">
+                      <div className="text-3xl mb-4">⭐</div>
+                      <h3 className="font-bold text-lg mb-2">Avalie</h3>
+                      <p className="text-sm text-gray-400">Diga o que achou e suba de nível!</p>
+                    </div>
+                    <div className="glass-card p-6 rounded-2xl border border-white/10">
+                      <div className="text-3xl mb-4">👥</div>
+                      <h3 className="font-bold text-lg mb-2">Combine</h3>
+                      <p className="text-sm text-gray-400">A IA encontra o filme perfeito pro grupo.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                     <button
                       onClick={() => setOnboardingStep(1)}
                       className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
                     >
-                      Vamos começar
+                      Criar minha conta grátis
                       <Sparkles className="w-5 h-5" />
                     </button>
                     <button
@@ -812,21 +904,6 @@ ${JSON.stringify(exportData, null, 2)}`;
                     >
                       Já tenho conta
                     </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl mx-auto px-4">
-                    <div className="glass-card p-6 rounded-2xl border border-white/10">
-                      <h3 className="text-lg font-bold mb-2">IA Pessoal</h3>
-                      <p className="text-sm text-gray-400">Receba recomendações baseadas no seu gosto único.</p>
-                    </div>
-                    <div className="glass-card p-6 rounded-2xl border border-white/10">
-                      <h3 className="text-lg font-bold mb-2">Sistema de Nível</h3>
-                      <p className="text-sm text-gray-400">Suba de nível avaliando filmes e desbloqueie conquistas.</p>
-                    </div>
-                    <div className="glass-card p-6 rounded-2xl border border-white/10">
-                      <h3 className="text-lg font-bold mb-2">Biblioteca Cloud</h3>
-                      <p className="text-sm text-gray-400">Salve seus filmes favoritos e acesse de qualquer lugar.</p>
-                    </div>
                   </div>
                 </motion.div>
               ) : (
@@ -1601,6 +1678,32 @@ ${JSON.stringify(exportData, null, 2)}`;
                             </p>
                           </>
                         )}
+                      </div>
+                    </div>
+
+                    <div className="glass-card p-6 rounded-2xl border border-white/10 space-y-4 text-left max-w-md mx-auto mb-8">
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <Bell className="w-5 h-5 text-purple-400" />
+                        Notificações
+                      </h3>
+                      <div className="space-y-2">
+                        {[
+                          { key: 'notify_loved', label: 'Amigos amam um filme' },
+                          { key: 'notify_liked', label: 'Amigos gostam de um filme' },
+                          { key: 'notify_disliked', label: 'Amigos não gostam de um filme' },
+                          { key: 'notify_skipped', label: 'Amigos pulam um filme' },
+                          { key: 'notify_watchlist', label: 'Amigos salvam na lista' },
+                        ].map((pref) => (
+                          <label key={pref.key} className="flex items-center gap-3 text-sm text-gray-300 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={notificationPrefs[pref.key as keyof typeof notificationPrefs]}
+                              onChange={(e) => handleUpdatePreference(pref.key, e.target.checked)}
+                              className="rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
+                            />
+                            {pref.label}
+                          </label>
+                        ))}
                       </div>
                     </div>
 

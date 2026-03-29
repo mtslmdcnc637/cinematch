@@ -260,6 +260,55 @@ export const supabaseService = {
     });
   },
 
+  // Notifications & Preferences
+  getNotificationPreferences: async (userId: string) => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('notify_loved, notify_liked, notify_disliked, notify_skipped, notify_watchlist')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  updateNotificationPreferences: async (userId: string, prefs: any) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update(prefs)
+      .eq('id', userId);
+    if (error) throw error;
+  },
+
+  getNotifications: async (userId: string) => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*, sender:profiles!notifications_sender_id_fkey(username)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  markNotificationAsRead: async (notificationId: string) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId);
+    if (error) throw error;
+  },
+
+  createNotification: async (notification: any) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('notifications')
+      .insert(notification);
+    if (error) throw error;
+  },
+
   getFriendTastes: async (friendId: string) => {
     if (!supabase) return null;
     const [ratings, watchlist] = await Promise.all([
