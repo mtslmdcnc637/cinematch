@@ -15,6 +15,7 @@ import { Toaster, toast } from 'sonner';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('onboarding');
+  const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [ratings, setRatings] = useState<UserRating[]>([]);
@@ -762,81 +763,122 @@ ${JSON.stringify(exportData, null, 2)}`;
         ) : (
           <AnimatePresence mode="wait">
             {currentPage === 'onboarding' ? (
-            <motion.div 
-              key="onboarding"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto text-center py-12"
-            >
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2, type: "spring" }}
-                className="mb-8 relative"
-              >
-                <div className="absolute inset-0 bg-purple-500 blur-3xl opacity-20 rounded-full" />
-                <div className="relative w-24 h-24 rounded-full glass-card flex items-center justify-center border border-purple-500/30">
-                  <Sparkles className="w-10 h-10 text-purple-400" />
-                </div>
-              </motion.div>
-              
-              <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tighter font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50">
-                O que você curte?
-              </h2>
-              <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed">
-                Selecione pelo menos 3 gêneros para calibrarmos o nosso algoritmo e encontrarmos os filmes perfeitos para você.
-              </p>
-              
-              <div className="flex flex-wrap justify-center gap-3 mb-16">
-                {GENRES.map((genre, i) => {
-                  const isSelected = selectedGenres.includes(genre.id);
-                  return (
-                    <motion.button
-                      key={genre.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => toggleGenre(genre.id)}
-                      className={`flex items-center gap-2 px-6 py-3.5 rounded-full border backdrop-blur-md transition-all duration-300 ${
-                        isSelected 
-                          ? 'bg-purple-600/80 text-white border-purple-400 shadow-[0_0_30px_rgba(147,51,234,0.4)]' 
-                          : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:border-white/30'
-                      }`}
+              onboardingStep === 0 ? (
+                <motion.div
+                  key="welcome"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto text-center py-12"
+                >
+                  <div className="mb-8 relative">
+                    <div className="absolute inset-0 bg-purple-500 blur-3xl opacity-20 rounded-full" />
+                    <div className="relative w-32 h-32 rounded-full glass-card flex items-center justify-center border border-purple-500/30">
+                      <Sparkles className="w-16 h-16 text-purple-400" />
+                    </div>
+                  </div>
+                  <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tighter font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50">
+                    Bem-vindo ao CineMatch!
+                  </h2>
+                  <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+                    Sua jornada cinematográfica começa aqui. Descubra filmes perfeitos, suba de nível avaliando e conecte-se com amigos.
+                  </p>
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+                    <button
+                      onClick={() => setOnboardingStep(1)}
+                      className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
                     >
-                      {isSelected && <Check className="w-4 h-4" />}
-                      <span className="font-medium tracking-wide">{genre.name}</span>
-                    </motion.button>
-                  );
-                })}
-              </div>
-              
-              <motion.button 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                onClick={async () => {
-                  if (user) {
-                    try {
-                      await supabaseService.updateProfile(user.id, { selectedGenres });
-                      setCurrentPage('feed');
-                    } catch (error) {
-                      console.error("Error saving genres:", error);
-                      toast.error("Erro ao salvar gêneros. Verifique o console para mais detalhes.");
-                    }
-                  } else {
-                    setCurrentPage('feed');
-                  }
-                }}
-                disabled={selectedGenres.length < 3}
-                className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
-              >
-                Começar a Experiência
-                <Film className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </motion.button>
-            </motion.div>
+                      Vamos começar
+                      <Sparkles className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage('profile')}
+                      className="group relative inline-flex items-center justify-center gap-3 bg-white/10 text-white px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:bg-white/20 hover:scale-105"
+                    >
+                      Já tenho conta
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 max-w-4xl mx-auto px-4">
+                    <div className="glass-card p-6 rounded-2xl border border-white/10">
+                      <h3 className="text-lg font-bold mb-2">IA Pessoal</h3>
+                      <p className="text-sm text-gray-400">Receba recomendações baseadas no seu gosto único.</p>
+                    </div>
+                    <div className="glass-card p-6 rounded-2xl border border-white/10">
+                      <h3 className="text-lg font-bold mb-2">Sistema de Nível</h3>
+                      <p className="text-sm text-gray-400">Suba de nível avaliando filmes e desbloqueie conquistas.</p>
+                    </div>
+                    <div className="glass-card p-6 rounded-2xl border border-white/10">
+                      <h3 className="text-lg font-bold mb-2">Biblioteca Cloud</h3>
+                      <p className="text-sm text-gray-400">Salve seus filmes favoritos e acesse de qualquer lugar.</p>
+                    </div>
+                  </div>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="onboarding-genres"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto text-center py-12"
+                >
+                  <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tighter font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50">
+                    O que você curte?
+                  </h2>
+                  <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto font-light leading-relaxed">
+                    Selecione pelo menos 3 gêneros para calibrarmos o nosso algoritmo e encontrarmos os filmes perfeitos para você.
+                  </p>
+                  
+                  <div className="flex flex-wrap justify-center gap-3 mb-16">
+                    {GENRES.map((genre, i) => {
+                      const isSelected = selectedGenres.includes(genre.id);
+                      return (
+                        <motion.button
+                          key={genre.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.03 }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => toggleGenre(genre.id)}
+                          className={`flex items-center gap-2 px-6 py-3.5 rounded-full border backdrop-blur-md transition-all duration-300 ${
+                            isSelected 
+                              ? 'bg-purple-600/80 text-white border-purple-400 shadow-[0_0_30px_rgba(147,51,234,0.4)]' 
+                              : 'bg-white/5 text-gray-300 border-white/10 hover:bg-white/10 hover:border-white/30'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-4 h-4" />}
+                          <span className="font-medium tracking-wide">{genre.name}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                  
+                  <motion.button 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6 }}
+                    onClick={async () => {
+                      if (user) {
+                        try {
+                          await supabaseService.updateProfile(user.id, { selectedGenres });
+                          setCurrentPage('feed');
+                        } catch (error) {
+                          console.error("Error saving genres:", error);
+                          toast.error("Erro ao salvar gêneros. Verifique o console para mais detalhes.");
+                        }
+                      } else {
+                        setCurrentPage('feed');
+                      }
+                    }}
+                    disabled={selectedGenres.length < 3}
+                    className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+                  >
+                    Começar a Experiência
+                    <Film className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </motion.button>
+                </motion.div>
+              )
             ) : currentPage === 'feed' ? (
             <motion.div
               key="feed"
@@ -1512,36 +1554,39 @@ ${JSON.stringify(exportData, null, 2)}`;
                     <p className="text-gray-400 mb-6">{user.email}</p>
                     
                     {/* Level Progress */}
-                    <div className="max-w-md mx-auto mb-8 glass-card p-6 rounded-3xl border border-white/10">
-                      <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${LEVELS.find(l => l.level === userProfile.level)?.color || 'from-gray-500 to-gray-400'} flex items-center justify-center text-2xl shadow-lg`}>
-                            {LEVELS.find(l => l.level === userProfile.level)?.icon || '🌱'}
+                    <div className="max-w-md mx-auto mb-8 relative group">
+                      <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-amber-500 rounded-[2rem] opacity-30 group-hover:opacity-60 transition duration-500 blur"></div>
+                      <div className="relative glass-card p-6 rounded-3xl border border-white/10 bg-[#111]">
+                        <div className="flex justify-between items-center mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${LEVELS.find(l => l.level === userProfile.level)?.color || 'from-gray-500 to-gray-400'} flex items-center justify-center text-3xl shadow-lg border border-white/10`}>
+                              {LEVELS.find(l => l.level === userProfile.level)?.icon || '🌱'}
+                            </div>
+                            <div className="text-left">
+                              <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Nível {userProfile.level}</p>
+                              <p className="font-bold text-xl text-white">{LEVELS.find(l => l.level === userProfile.level)?.name || 'Novato'}</p>
+                            </div>
                           </div>
-                          <div className="text-left">
-                            <p className="text-sm text-gray-400 font-medium uppercase tracking-wider">Nível {userProfile.level}</p>
-                            <p className="font-bold text-lg">{LEVELS.find(l => l.level === userProfile.level)?.name || 'Novato'}</p>
+                          <div className="text-right">
+                            <p className="text-3xl font-bold font-display text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">{userProfile.xp} <span className="text-sm text-gray-400 font-sans font-normal">XP</span></p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold font-display">{userProfile.xp} <span className="text-sm text-gray-400 font-sans font-normal">XP</span></p>
-                        </div>
+                        
+                        {userProfile.level < 10 && (
+                          <>
+                            <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 mb-2">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${((userProfile.xp - (LEVELS.find(l => l.level === userProfile.level)?.xpRequired || 0)) / ((LEVELS.find(l => l.level === userProfile.level + 1)?.xpRequired || 1) - (LEVELS.find(l => l.level === userProfile.level)?.xpRequired || 0))) * 100}%` }}
+                                className={`h-full bg-gradient-to-r ${LEVELS.find(l => l.level === userProfile.level + 1)?.color || 'from-purple-500 to-pink-500'}`}
+                              />
+                            </div>
+                            <p className="text-xs text-gray-400 text-right">
+                              Faltam {LEVELS.find(l => l.level === userProfile.level + 1)?.xpRequired! - userProfile.xp} XP para o nível {userProfile.level + 1}
+                            </p>
+                          </>
+                        )}
                       </div>
-                      
-                      {userProfile.level < 10 && (
-                        <>
-                          <div className="w-full h-3 bg-black/50 rounded-full overflow-hidden border border-white/5 mb-2">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${((userProfile.xp - (LEVELS.find(l => l.level === userProfile.level)?.xpRequired || 0)) / ((LEVELS.find(l => l.level === userProfile.level + 1)?.xpRequired || 1) - (LEVELS.find(l => l.level === userProfile.level)?.xpRequired || 0))) * 100}%` }}
-                              className={`h-full bg-gradient-to-r ${LEVELS.find(l => l.level === userProfile.level + 1)?.color || 'from-purple-500 to-pink-500'}`}
-                            />
-                          </div>
-                          <p className="text-xs text-gray-400 text-right">
-                            Faltam {LEVELS.find(l => l.level === userProfile.level + 1)?.xpRequired! - userProfile.xp} XP para o nível {userProfile.level + 1}
-                          </p>
-                        </>
-                      )}
                     </div>
 
                     <button 
