@@ -41,6 +41,7 @@ export default function App() {
   // Auth state
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authUsername, setAuthUsername] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -345,7 +346,7 @@ export default function App() {
     setIsAuthLoading(true);
     try {
       if (isSignUp) {
-        await supabaseService.signUpWithEmail(authEmail, authPassword);
+        await supabaseService.signUpWithEmail(authEmail, authPassword, authUsername);
         toast.success('Conta criada! Verifique seu e-mail ou faça login.', { icon: '🎉' });
         setIsSignUp(false); // Switch to login mode
       } else {
@@ -512,6 +513,7 @@ ${JSON.stringify(exportData, null, 2)}`;
 
   const navItems = [
     { id: 'feed', label: 'Descobrir', icon: Sparkles },
+    { id: 'daily_tip', label: 'Dica', icon: Lightbulb },
     { id: 'search', label: 'Buscar', icon: Search },
     { id: 'friends', label: 'Amigos', icon: Users },
     { id: 'library', label: 'Biblioteca', icon: Library },
@@ -947,7 +949,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                         <h2 className="text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight">
                           {currentMovie.title}
                         </h2>
-                        <p className="text-gray-300 text-sm line-clamp-3 leading-relaxed mb-4">
+                        <p className="text-gray-300 text-sm leading-relaxed mb-4">
                           {currentMovie.overview}
                         </p>
                       </div>
@@ -1160,7 +1162,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                       <h2 className="text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight">
                         {dailyTip.title}
                       </h2>
-                      <p className="text-gray-300 text-sm line-clamp-3 leading-relaxed mb-4">
+                      <p className="text-gray-300 text-sm leading-relaxed mb-4">
                         {dailyTip.overview}
                       </p>
                     </div>
@@ -1609,6 +1611,18 @@ ${JSON.stringify(exportData, null, 2)}`;
                     </p>
 
                     <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
+                      {isSignUp && (
+                        <div>
+                          <input
+                            type="text"
+                            placeholder="Seu nome de usuário"
+                            value={authUsername}
+                            onChange={(e) => setAuthUsername(e.target.value)}
+                            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all"
+                            required
+                          />
+                        </div>
+                      )}
                       <div>
                         <input
                           type="email"

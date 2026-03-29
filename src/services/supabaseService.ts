@@ -3,10 +3,29 @@ import { Movie, Rating } from '../types';
 
 export const supabaseService = {
   // Auth
-  signUpWithEmail: async (email: string, password: string) => {
+  signUpWithEmail: async (email: string, password: string, username: string) => {
     if (!supabase) throw new Error('Supabase não configurado');
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        data: { username }
+      }
+    });
     if (error) throw error;
+    
+    if (data.user) {
+      // Cria ou atualiza o perfil na tabela profiles
+      await supabase
+        .from('profiles')
+        .upsert({
+          id: data.user.id,
+          username: username,
+          xp: 0,
+          level: 1
+        });
+    }
+    
     return data;
   },
 
@@ -169,7 +188,7 @@ export const supabaseService = {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, username, avatar_url')
-      .or(`username.ilike.%${query}%`)
+      .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
       .limit(10);
     if (error) throw error;
     return data;

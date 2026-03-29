@@ -26,6 +26,7 @@ export type WatchlistItem = {
 export type UserProfile = {
   id?: string;
   email?: string;
+  username?: string;
   xp: number;
   level: number;
   genres?: number[];
