@@ -59,7 +59,7 @@ export const supabaseService = {
     if (!supabase) return [];
     const { data, error } = await supabase
       .from('ratings')
-      .select('*')
+      .select('movie_id, rating, movie_data, timestamp')
       .eq('user_id', userId);
     if (error) throw error;
     return data.map(r => ({
@@ -74,12 +74,12 @@ export const supabaseService = {
     if (!supabase) return;
     const { error } = await supabase
       .from('watchlist')
-      .insert({
+      .upsert({
         user_id: userId,
         movie_id: movie.id,
         movie_data: movie,
         timestamp: new Date().toISOString()
-      });
+      }, { onConflict: 'user_id, movie_id' });
     if (error) throw error;
   },
 
@@ -96,7 +96,7 @@ export const supabaseService = {
     if (!supabase) return [];
     const { data, error } = await supabase
       .from('watchlist')
-      .select('*')
+      .select('movie_id, movie_data, timestamp')
       .eq('user_id', userId);
     if (error) throw error;
     return data.map(w => ({
@@ -109,35 +109,49 @@ export const supabaseService = {
   // Profile & XP
   getProfile: async (userId: string) => {
     if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, username, avatar_url, xp, level, selected_genres')
-      .eq('id', userId)
-      .single();
-    
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, xp, level, selected_genres')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        console.error("Supabase getProfile error:", error);
+        throw error;
+      }
+      return {
+        ...data,
+        selectedGenres: data.selected_genres || []
+      };
+    } catch (e) {
+      console.error("Exception in getProfile:", e);
+      throw e;
     }
-    return {
-      ...data,
-      selectedGenres: data.selected_genres || []
-    };
   },
 
   updateProfile: async (userId: string, updates: { xp?: number, level?: number, selectedGenres?: number[], username?: string, avatar_url?: string }) => {
     if (!supabase) return;
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        xp: updates.xp,
-        level: updates.level,
-        selected_genres: updates.selectedGenres,
-        username: updates.username,
-        avatar_url: updates.avatar_url
-      })
-      .eq('id', userId);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          xp: updates.xp || 0,
+          level: updates.level || 1,
+          selected_genres: updates.selectedGenres,
+          username: updates.username,
+          avatar_url: updates.avatar_url
+        }, { onConflict: 'id' });
+      if (error) {
+        console.error("Supabase updateProfile error:", error);
+        throw error;
+      }
+    } catch (e) {
+      console.error("Exception in updateProfile:", e);
+      throw e;
+    }
   },
 
   updateXp: async (userId: string, newXp: number, newLevel: number) => {

@@ -116,8 +116,12 @@ export default function App() {
 
   useEffect(() => {
     if (user) {
-      supabaseService.getFriends(user.id).then(setFriends);
-      supabaseService.getFriendRequests(user.id).then(setFriendRequests);
+      supabaseService.getFriends(user.id)
+        .then(setFriends)
+        .catch(err => console.error("Error fetching friends:", err));
+      supabaseService.getFriendRequests(user.id)
+        .then(setFriendRequests)
+        .catch(err => console.error("Error fetching friend requests:", err));
     }
   }, [user]);
 
@@ -757,7 +761,7 @@ ${JSON.stringify(exportData, null, 2)}`;
           </div>
         ) : (
           <AnimatePresence mode="wait">
-            {currentPage === 'onboarding' && (
+            {currentPage === 'onboarding' ? (
             <motion.div 
               key="onboarding"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -815,9 +819,16 @@ ${JSON.stringify(exportData, null, 2)}`;
                 transition={{ delay: 0.6 }}
                 onClick={async () => {
                   if (user) {
-                    await supabaseService.updateProfile(user.id, { selectedGenres });
+                    try {
+                      await supabaseService.updateProfile(user.id, { selectedGenres });
+                      setCurrentPage('feed');
+                    } catch (error) {
+                      console.error("Error saving genres:", error);
+                      toast.error("Erro ao salvar gêneros. Verifique o console para mais detalhes.");
+                    }
+                  } else {
+                    setCurrentPage('feed');
                   }
-                  setCurrentPage('feed');
                 }}
                 disabled={selectedGenres.length < 3}
                 className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
@@ -826,9 +837,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                 <Film className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </motion.button>
             </motion.div>
-          )}
-
-          {currentPage === 'feed' && (
+            ) : currentPage === 'feed' ? (
             <motion.div
               key="feed"
               initial={{ opacity: 0 }}
@@ -954,9 +963,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                 </div>
               )}
             </motion.div>
-          )}
-
-          {currentPage === 'search' && (
+            ) : currentPage === 'search' ? (
             <motion.div
               key="search"
               initial={{ opacity: 0 }}
@@ -1035,9 +1042,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                 </div>
               )}
             </motion.div>
-          )}
-
-          {currentPage === 'daily_tip' && (
+            ) : currentPage === 'daily_tip' ? (
             <motion.div
               key="daily_tip"
               initial={{ opacity: 0 }}
@@ -1149,9 +1154,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                 </div>
               )}
             </motion.div>
-          )}
-
-          {currentPage === 'friends' && (
+            ) : currentPage === 'friends' ? (
             <motion.div
               key="friends"
               initial={{ opacity: 0 }}
@@ -1263,88 +1266,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                 </button>
               </div>
             </motion.div>
-          )}
-
-          {/* Add Friend Modal */}
-          <AnimatePresence>
-            {showAddFriendModal && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
-                onClick={() => setShowAddFriendModal(false)}
-              >
-                <motion.div
-                  initial={{ scale: 0.9, y: 20 }}
-                  animate={{ scale: 1, y: 0 }}
-                  exit={{ scale: 0.9, y: 20 }}
-                  className="bg-[#111] border border-white/10 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-transparent pointer-events-none" />
-                  
-                  <h3 className="text-2xl font-bold mb-6 font-display text-white">Adicionar Amigo</h3>
-                  
-                  <div className="relative mb-6">
-                    <input
-                      type="text"
-                      placeholder="Email ou nome de usuário..."
-                      value={searchUserQuery}
-                      onChange={(e) => setSearchUserQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all"
-                    />
-                    <button 
-                      onClick={handleSearchUsers}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      <Search className="w-4 h-4 text-white" />
-                    </button>
-                  </div>
-
-                  <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-                    {isSearchingUsers ? (
-                      <div className="text-center py-8">
-                        <RefreshCw className="w-8 h-8 text-purple-500 animate-spin mx-auto" />
-                      </div>
-                    ) : userSearchResults.length > 0 ? (
-                      userSearchResults.map(result => (
-                        <div key={result.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5">
-                          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-                            <User className="w-5 h-5 text-gray-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-medium truncate">{result.username || 'Usuário'}</p>
-                            {/* Email removed as it doesn't exist in profiles table */}
-                          </div>
-                          <button
-                            onClick={() => handleSendRequest(result.id)}
-                            className="p-2 bg-purple-600/20 text-purple-400 rounded-lg hover:bg-purple-600 hover:text-white transition-all"
-                          >
-                            <UserPlus className="w-5 h-5" />
-                          </button>
-                        </div>
-                      ))
-                    ) : searchUserQuery.length > 2 ? (
-                      <p className="text-center text-gray-500 py-4">Nenhum usuário encontrado.</p>
-                    ) : (
-                      <p className="text-center text-gray-500 py-4">Digite pelo menos 3 caracteres.</p>
-                    )}
-                  </div>
-
-                  <button 
-                    onClick={() => setShowAddFriendModal(false)}
-                    className="w-full mt-8 py-3 rounded-xl bg-white/5 text-white font-medium hover:bg-white/10 transition-colors"
-                  >
-                    Fechar
-                  </button>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {currentPage === 'library' && (
+            ) : currentPage === 'library' ? (
             <motion.div
               key="library"
               initial={{ opacity: 0 }}
@@ -1568,9 +1490,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                 )
               )}
             </motion.div>
-          )}
-
-          {currentPage === 'profile' && (
+            ) : currentPage === 'profile' ? (
             <motion.div
               key="profile"
               initial={{ opacity: 0 }}
@@ -1759,10 +1679,89 @@ ${JSON.stringify(exportData, null, 2)}`;
                 </div>
               </div>
             </motion.div>
-          )}
+            ) : null}
         </AnimatePresence>
         )}
       </main>
+
+      {/* Add Friend Modal */}
+      <AnimatePresence>
+        {showAddFriendModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            onClick={() => setShowAddFriendModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-[#1a1a2e] border border-white/10 p-8 rounded-[2rem] max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center border border-purple-500/30">
+                  <UserPlus className="w-6 h-6 text-purple-400" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold font-display">Adicionar Amigo</h3>
+                  <p className="text-gray-400 text-sm">Busque por nome de usuário</p>
+                </div>
+              </div>
+
+              <div className="relative mb-6">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Ex: joaosilva"
+                  value={searchUserQuery}
+                  onChange={(e) => setSearchUserQuery(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                />
+              </div>
+
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                {isSearchingUsers ? (
+                  <div className="text-center py-8">
+                    <RefreshCw className="w-8 h-8 text-purple-500 animate-spin mx-auto" />
+                  </div>
+                ) : userSearchResults.length > 0 ? (
+                  userSearchResults.map(result => (
+                    <div key={result.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5">
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                        <User className="w-5 h-5 text-gray-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium truncate">{result.username || 'Usuário'}</p>
+                        {/* Email removed as it doesn't exist in profiles table */}
+                      </div>
+                      <button
+                        onClick={() => handleSendRequest(result.id)}
+                        className="p-2 bg-purple-600/20 text-purple-400 rounded-lg hover:bg-purple-600 hover:text-white transition-all"
+                      >
+                        <UserPlus className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))
+                ) : searchUserQuery.length > 2 ? (
+                  <p className="text-center text-gray-500 py-4">Nenhum usuário encontrado.</p>
+                ) : (
+                  <p className="text-center text-gray-500 py-4">Digite pelo menos 3 caracteres.</p>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setShowAddFriendModal(false)}
+                className="w-full mt-8 py-3 rounded-xl bg-white/5 text-white font-medium hover:bg-white/10 transition-colors"
+              >
+                Fechar
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Mobile Navigation */}
       {currentPage !== 'onboarding' && (
