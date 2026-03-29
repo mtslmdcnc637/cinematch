@@ -75,8 +75,13 @@ export default function App() {
   useEffect(() => {
     if (user) {
       // Fetch Profile
-      supabaseService.getProfile(user.id).then(profile => {
+      supabaseService.getProfile(user.id).then(async (profile) => {
         if (profile) {
+          // Sync email if missing
+          if (!profile.email && user.email) {
+            await supabaseService.updateProfile(user.id, { ...profile, email: user.email });
+            profile.email = user.email;
+          }
           setUserProfile(profile);
           if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
             setSelectedGenres(profile.selectedGenres);
@@ -387,22 +392,24 @@ export default function App() {
       else if (rating === 'liked') xpGained = 10;
       else if (rating === 'disliked') xpGained = 5;
 
-      const newXp = userProfile.xp + xpGained;
-      let newLevel = userProfile.level;
-      
-      const nextLevelData = LEVELS.find(l => l.level === userProfile.level + 1);
-      
-      if (nextLevelData && newXp >= nextLevelData.xpRequired) {
-        newLevel = nextLevelData.level;
-        setNewLevelData(nextLevelData);
-        setShowLevelUpModal(true);
-      }
+      setUserProfile(prev => {
+        const newXp = prev.xp + xpGained;
+        let newLevel = prev.level;
+        
+        const nextLevelData = LEVELS.find(l => l.level === prev.level + 1);
+        
+        if (nextLevelData && newXp >= nextLevelData.xpRequired) {
+          newLevel = nextLevelData.level;
+          setNewLevelData(nextLevelData);
+          setShowLevelUpModal(true);
+        }
 
-      setUserProfile(prev => ({ ...prev, xp: newXp, level: newLevel }));
-      
-      if (user) {
-        supabaseService.updateXp(user.id, newXp, newLevel).catch(err => console.error("Error updating XP", err));
-      }
+        if (user) {
+          supabaseService.updateXp(user.id, newXp, newLevel).catch(err => console.error("Error updating XP", err));
+        }
+
+        return { ...prev, xp: newXp, level: newLevel };
+      });
     }
     
     // Visual feedback
@@ -1594,6 +1601,13 @@ ${JSON.stringify(exportData, null, 2)}`;
                     <button 
                       onClick={async () => {
                         await supabaseService.signOut();
+                        setUser(null);
+                        setUserProfile({ xp: 0, level: 1 });
+                        setRatings([]);
+                        setWatchlist([]);
+                        setSelectedGenres([]);
+                        setSelectedFriends([]);
+                        setCurrentPage('onboarding');
                         toast.success('Deslogado com sucesso!');
                       }}
                       className="bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center gap-2 mx-auto border border-white/10"
@@ -1766,18 +1780,25 @@ ${JSON.stringify(exportData, null, 2)}`;
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold font-display">Adicionar Amigo</h3>
-                  <p className="text-gray-400 text-sm">Busque por nome de usuário</p>
+                  <p className="text-gray-400 text-sm">Busque por nome de usuário ou e-mail</p>
                 </div>
               </div>
 
               <div className="relative mb-6">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <button
+                  onClick={handleSearchUsers}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-purple-600 rounded-lg hover:bg-purple-500 transition-colors"
+                >
+                  <Search className="w-5 h-5 text-white" />
+                </button>
                 <input
                   type="text"
-                  placeholder="Ex: joaosilva"
+                  placeholder="Ex: joaosilva ou joao@email.com"
                   value={searchUserQuery}
                   onChange={(e) => setSearchUserQuery(e.target.value)}
-                  className="w-full bg-black/50 border border-white/10 rounded-xl py-4 pl-12 pr-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                  className="w-full bg-black/50 border border-white/10 rounded-xl py-4 pl-12 pr-14 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
                 />
               </div>
 
@@ -1794,7 +1815,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">{result.username || 'Usuário'}</p>
-                        {/* Email removed as it doesn't exist in profiles table */}
+                        <p className="text-xs text-gray-500 truncate">{result.email || ''}</p>
                       </div>
                       <button
                         onClick={() => handleSendRequest(result.id)}

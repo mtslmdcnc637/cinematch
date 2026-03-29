@@ -131,7 +131,7 @@ export const supabaseService = {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, xp, level, selected_genres')
+        .select('id, username, avatar_url, xp, level, selected_genres, email')
         .eq('id', userId)
         .single();
       
@@ -150,7 +150,7 @@ export const supabaseService = {
     }
   },
 
-  updateProfile: async (userId: string, updates: { xp?: number, level?: number, selectedGenres?: number[], username?: string, avatar_url?: string }) => {
+  updateProfile: async (userId: string, updates: { xp?: number, level?: number, selectedGenres?: number[], username?: string, avatar_url?: string, email?: string }) => {
     if (!supabase) return;
     try {
       const { error } = await supabase
@@ -161,7 +161,8 @@ export const supabaseService = {
           level: updates.level || 1,
           selected_genres: updates.selectedGenres,
           username: updates.username,
-          avatar_url: updates.avatar_url
+          avatar_url: updates.avatar_url,
+          email: updates.email
         }, { onConflict: 'id' });
       if (error) {
         console.error("Supabase updateProfile error:", error);
@@ -187,7 +188,7 @@ export const supabaseService = {
     if (!supabase) return [];
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url')
+      .select('id, username, avatar_url, email')
       .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
       .limit(10);
     if (error) throw error;
