@@ -122,7 +122,7 @@ export default function App() {
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (user && currentPage === 'friends') {
       supabaseService.getFriends(user.id)
         .then(setFriends)
         .catch(err => console.error("Error fetching friends:", err));
@@ -130,7 +130,7 @@ export default function App() {
         .then(setFriendRequests)
         .catch(err => console.error("Error fetching friend requests:", err));
     }
-  }, [user]);
+  }, [user, currentPage]);
 
   // New States for Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -432,9 +432,11 @@ export default function App() {
     const imageUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
     const shortText = `🎬 *${movie.title}*\n\n🍿 Encontrei essa recomendação no CineMatch! Descubra, avalie e salve filmes para assistir depois:\n${window.location.origin}`;
     
+    let shared = false;
+
     try {
-      // Tenta baixar a imagem para compartilhar como arquivo (gera um preview bonito no WhatsApp/Instagram)
-      const response = await fetch(imageUrl);
+      // Tenta baixar a imagem para compartilhar como arquivo
+      const response = await fetch(imageUrl, { mode: 'cors' });
       const blob = await response.blob();
       const file = new File([blob], 'poster.jpg', { type: blob.type });
 
@@ -444,27 +446,31 @@ export default function App() {
           text: shortText,
           files: [file]
         });
-        return; // Sucesso com imagem!
+        shared = true;
       }
     } catch (error) {
-      console.error('Erro ao preparar imagem para compartilhamento:', error);
-      // Se falhar (ex: CORS), cai no fallback abaixo
+      console.error('Erro ao compartilhar com imagem:', error);
     }
 
-    // Fallback: Compartilha apenas o texto e o link da imagem
-    const fallbackText = `${shortText}\n\n${imageUrl}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: movie.title,
-          text: fallbackText,
-        });
-      } catch (error) {
-        console.error('Error sharing', error);
+    if (!shared) {
+      // Fallback: Compartilha apenas o texto e o link da imagem
+      const fallbackText = `${shortText}\n\n${imageUrl}`;
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: movie.title,
+            text: fallbackText,
+          });
+          shared = true;
+        } catch (error) {
+          console.error('Error sharing text:', error);
+        }
       }
-    } else {
-      navigator.clipboard.writeText(fallbackText);
-      toast.success('Texto copiado para a área de transferência!');
+      
+      if (!shared) {
+        navigator.clipboard.writeText(fallbackText);
+        toast.success('Texto copiado para a área de transferência!');
+      }
     }
   };
 
