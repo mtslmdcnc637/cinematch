@@ -25,3 +25,9 @@ export const searchMovies = async (query: string) => {
   const data = await response.json();
   return data.results || [];
 };
+
+export const fetchMovieById = async (movieId: number) => {
+  const response = await fetch(`${TMDB_API_BASE}/movie/${movieId}?api_key=${API_KEY}&language=pt-BR`);
+  const data = await response.json();
+  return data;
+};

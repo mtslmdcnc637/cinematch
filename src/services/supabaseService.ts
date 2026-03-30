@@ -309,6 +309,35 @@ export const supabaseService = {
     if (error) throw error;
   },
 
+  getDailyTip: async (userId: string) => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('daily_tip_id, daily_tip_date')
+      .eq('id', userId)
+      .single();
+    if (error) {
+      console.error("Supabase getDailyTip error:", error);
+      return null;
+    }
+    return data;
+  },
+
+  saveDailyTip: async (userId: string, movieId: number) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        daily_tip_id: movieId,
+        daily_tip_date: new Date().toISOString().split('T')[0]
+      })
+      .eq('id', userId);
+    if (error) {
+      console.error("Supabase saveDailyTip error:", error);
+      throw error;
+    }
+  },
+
   getFriendTastes: async (friendId: string) => {
     if (!supabase) return null;
     const [ratings, watchlist] = await Promise.all([

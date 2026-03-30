@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GENRES, LEVELS } from './constants';
-import { fetchDiscoverMovies, searchMovies } from './services/tmdbService';
+import { fetchPopularMovies, fetchDiscoverMovies, searchMovies, fetchMovieById } from './services/tmdbService';
 import { supabaseService } from './services/supabaseService';
 import { supabase } from './lib/supabase';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile } from './types';
@@ -305,6 +305,20 @@ export default function App() {
     let targetGenre = dailyTipGenre;
     let reason = "";
 
+    const today = new Date().toISOString().split('T')[0];
+
+    // Tentar carregar dica salva
+    if (user && !forceReload) {
+      const savedTip = await supabaseService.getDailyTip(user.id);
+      if (savedTip && savedTip.daily_tip_date === today && savedTip.daily_tip_id) {
+        const movie = await fetchMovieById(savedTip.daily_tip_id);
+        setDailyTip(movie);
+        setDailyTipReason("Dica do dia salva para você");
+        setIsLoadingTip(false);
+        return;
+      }
+    }
+
     if (!targetGenre) {
       // Analyze tastes
       const genreCounts: Record<number, number> = {};
@@ -341,8 +355,6 @@ export default function App() {
       reason = `Dica de ${genreName} para você`;
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    
     const randomPage = Math.floor(Math.random() * 5) + 1;
     const tipMovies = await fetchDiscoverMovies(randomPage, targetGenre);
     
@@ -352,6 +364,9 @@ export default function App() {
       const randomMovie = unseen[Math.floor(Math.random() * unseen.length)];
       setDailyTip(randomMovie);
       setDailyTipReason(reason);
+      if (user) {
+        await supabaseService.saveDailyTip(user.id, randomMovie.id);
+      }
     } else {
       setDailyTip(null);
     }
@@ -1036,10 +1051,10 @@ ${JSON.stringify(exportData, null, 2)}`;
                             {currentMovie.release_date?.split('-')[0]}
                           </span>
                         </div>
-                        <h2 className="text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight">
+                        <h2 className="text-3xl md:text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight break-words">
                           {currentMovie.title}
                         </h2>
-                        <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                        <p className="text-gray-300 text-sm leading-relaxed mb-12 line-clamp-4">
                           {currentMovie.overview}
                         </p>
                       </div>
@@ -1249,10 +1264,10 @@ ${JSON.stringify(exportData, null, 2)}`;
                           {dailyTip.release_date?.split('-')[0]}
                         </span>
                       </div>
-                      <h2 className="text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight">
+                      <h2 className="text-3xl md:text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight break-words">
                         {dailyTip.title}
                       </h2>
-                      <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                      <p className="text-gray-300 text-sm leading-relaxed mb-4 line-clamp-4">
                         {dailyTip.overview}
                       </p>
                     </div>
@@ -1262,12 +1277,39 @@ ${JSON.stringify(exportData, null, 2)}`;
                   <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-black/60 backdrop-blur-xl p-3 rounded-full border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
                     <RatingButton 
                       onClick={() => {
+                        saveRating(dailyTip, 'not_seen');
+                        generateDailyTip();
+                      }} 
+                      icon={<EyeOff className="w-5 h-5" />} 
+                      colorClass="text-gray-400 hover:text-white hover:bg-white/10"
+                      tooltip="Pular"
+                    />
+                    <RatingButton 
+                      onClick={() => {
+                        saveRating(dailyTip, 'disliked');
+                        generateDailyTip();
+                      }} 
+                      icon={<ThumbsDown className="w-5 h-5" />} 
+                      colorClass="text-red-500 hover:bg-red-500/20"
+                      tooltip="Não Gostei"
+                    />
+                    <RatingButton 
+                      onClick={() => {
                         addToWatchlist(dailyTip);
                         generateDailyTip();
                       }} 
                       icon={<Bookmark className="w-5 h-5" />} 
                       colorClass="text-blue-400 hover:bg-blue-500/20"
                       tooltip="Ver Depois"
+                    />
+                    <RatingButton 
+                      onClick={() => {
+                        saveRating(dailyTip, 'liked');
+                        generateDailyTip();
+                      }} 
+                      icon={<ThumbsUp className="w-5 h-5" />} 
+                      colorClass="text-emerald-500 hover:bg-emerald-500/20"
+                      tooltip="Gostei"
                     />
                     <RatingButton 
                       onClick={() => {
@@ -2021,20 +2063,27 @@ ${JSON.stringify(exportData, null, 2)}`;
                 </div>
               </div>
 
-              <div className="flex justify-center gap-3 mb-6 relative z-10">
-                <button onClick={() => saveRating(editingMovie, 'loved')} className={`p-4 rounded-full transition-colors ${getRating(editingMovie.id) === 'loved' ? 'bg-pink-500/40 text-pink-300' : 'bg-white/5 hover:bg-pink-500/20 text-pink-500 border border-white/10'}`}>
-                  <Heart className="w-6 h-6" />
+              <div className="grid grid-cols-4 gap-2 mb-6 relative z-10">
+                <button onClick={() => saveRating(editingMovie, 'loved')} className={`flex flex-col items-center justify-center p-3 rounded-xl transition-colors ${getRating(editingMovie.id) === 'loved' ? 'bg-pink-500/40 text-pink-300' : 'bg-white/5 hover:bg-pink-500/20 text-pink-500 border border-white/10'}`}>
+                  <Heart className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-medium">Amei</span>
                 </button>
-                <button onClick={() => saveRating(editingMovie, 'liked')} className={`p-4 rounded-full transition-colors ${getRating(editingMovie.id) === 'liked' ? 'bg-emerald-500/40 text-emerald-300' : 'bg-white/5 hover:bg-emerald-500/20 text-emerald-500 border border-white/10'}`}>
-                  <ThumbsUp className="w-6 h-6" />
+                <button onClick={() => saveRating(editingMovie, 'liked')} className={`flex flex-col items-center justify-center p-3 rounded-xl transition-colors ${getRating(editingMovie.id) === 'liked' ? 'bg-emerald-500/40 text-emerald-300' : 'bg-white/5 hover:bg-emerald-500/20 text-emerald-500 border border-white/10'}`}>
+                  <ThumbsUp className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-medium">Gostei</span>
                 </button>
-                <button onClick={() => saveRating(editingMovie, 'disliked')} className={`p-4 rounded-full transition-colors ${getRating(editingMovie.id) === 'disliked' ? 'bg-red-500/40 text-red-300' : 'bg-white/5 hover:bg-red-500/20 text-red-500 border border-white/10'}`}>
-                  <ThumbsDown className="w-6 h-6" />
+                <button onClick={() => saveRating(editingMovie, 'disliked')} className={`flex flex-col items-center justify-center p-3 rounded-xl transition-colors ${getRating(editingMovie.id) === 'disliked' ? 'bg-red-500/40 text-red-300' : 'bg-white/5 hover:bg-red-500/20 text-red-500 border border-white/10'}`}>
+                  <ThumbsDown className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-medium">Não Gostei</span>
+                </button>
+                <button onClick={() => addToWatchlist(editingMovie)} className={`flex flex-col items-center justify-center p-3 rounded-xl transition-colors ${watchlist.some(w => w.movieId === editingMovie.id) ? 'bg-blue-500/40 text-blue-300' : 'bg-white/5 hover:bg-blue-500/20 text-blue-500 border border-white/10'}`}>
+                  <Bookmark className="w-6 h-6 mb-1" />
+                  <span className="text-[10px] font-medium">Ver Depois</span>
                 </button>
               </div>
 
               <div className="flex flex-col gap-2 relative z-10">
-                {watchlist.some(w => w.movieId === editingMovie.id) ? (
+                {watchlist.some(w => w.movieId === editingMovie.id) && (
                   <button 
                     onClick={() => {
                       removeFromWatchlist(editingMovie.id);
@@ -2044,7 +2093,9 @@ ${JSON.stringify(exportData, null, 2)}`;
                   >
                     Remover da Lista
                   </button>
-                ) : (
+                )}
+                
+                {getRating(editingMovie.id) && (
                   <button 
                     onClick={async () => {
                       const newRatings = ratings.filter(r => r.movieId !== editingMovie.id);
@@ -2060,6 +2111,7 @@ ${JSON.stringify(exportData, null, 2)}`;
                     Remover da Biblioteca
                   </button>
                 )}
+                
                 <button 
                   onClick={() => setEditingMovie(null)} 
                   className="w-full py-3 rounded-xl bg-white/5 text-white font-medium hover:bg-white/10 transition-colors"
