@@ -252,7 +252,12 @@ export const supabaseService = {
       .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
       .eq('status', 'accepted');
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching friends:", error);
+      throw error;
+    }
+    
+    console.log("Friends data:", data);
     
     return data.map(f => {
       const isUser = f.user_id === userId;
@@ -304,10 +309,15 @@ export const supabaseService = {
 
   createNotification: async (notification: any) => {
     if (!supabase) return;
-    const { error } = await supabase
+    console.log("Creating notification:", notification);
+    const { error, data } = await supabase
       .from('notifications')
       .insert(notification);
-    if (error) throw error;
+    if (error) {
+      console.error("Error creating notification:", error);
+      throw error;
+    }
+    console.log("Notification created successfully:", data);
   },
 
   getDailyTip: async (userId: string) => {
@@ -352,6 +362,7 @@ export const supabaseService = {
     if (!supabase) return [];
     const friends = await supabaseService.getFriends(userId);
     const friendIds = friends.map(f => f.id);
+    console.log("Friend IDs for recent ratings:", friendIds);
     if (friendIds.length === 0) return [];
 
     const { data, error } = await supabase
@@ -361,7 +372,11 @@ export const supabaseService = {
       .order('timestamp', { ascending: false })
       .limit(10);
       
-    if (error) throw error;
+    if (error) {
+      console.error("Error fetching recent friend ratings:", error);
+      throw error;
+    }
+    console.log("Recent friend ratings:", data);
     return data;
   },
 
