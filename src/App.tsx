@@ -12,6 +12,7 @@ import { Movie, Rating, UserRating, WatchlistItem, UserProfile } from './types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Library, Sparkles, User, Check, Star, Calendar, Clapperboard, Info, PlayCircle, Bookmark, Trash2, Lightbulb, RefreshCw, Search, Share2, Bot, X, Users, UserPlus, Bell } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
+import { Stories } from './components/Stories';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('onboarding');
@@ -433,6 +434,12 @@ export default function App() {
     // Sync with Supabase
     if (user) {
       supabaseService.saveRating(user.id, movie, rating).catch(err => console.error("Error saving rating", err));
+      console.log("userProfile:", userProfile);
+      if (userProfile && userProfile.username && (rating === 'loved' || rating === 'liked')) {
+        supabaseService.notifyFriends(user.id, userProfile.username, movie.title, rating).catch(err => console.error("Error notifying friends", err));
+      } else {
+        console.log("Not notifying friends. username:", userProfile?.username, "rating:", rating);
+      }
     }
 
     // XP Logic
@@ -1343,6 +1350,8 @@ ${JSON.stringify(exportData, null, 2)}`;
                 <h2 className="text-4xl font-bold font-display mb-2">Match de Sofá</h2>
                 <p className="text-gray-400">Selecione quem vai assistir com você para encontrarmos o filme perfeito para o grupo.</p>
               </div>
+
+              {user && <Stories userId={user.id} />}
 
               {/* Friend Requests */}
               {friendRequests.length > 0 && (

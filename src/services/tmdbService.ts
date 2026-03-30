@@ -31,3 +31,13 @@ export const fetchMovieById = async (movieId: number) => {
   const data = await response.json();
   return data;
 };
+
+export const fetchMovieTrailers = async (movieId: number) => {
+  const response = await fetch(`${TMDB_API_BASE}/movie/${movieId}/videos?api_key=${API_KEY}&language=pt-BR`);
+  const data = await response.json();
+  const trailers = data.results.filter((v: any) => v.type === 'Trailer' && v.site === 'YouTube');
+  
+  // Prioriza trailers em português
+  const ptTrailers = trailers.filter((v: any) => v.iso_639_1 === 'pt');
+  return ptTrailers.length > 0 ? ptTrailers : trailers;
+};

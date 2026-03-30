@@ -256,7 +256,8 @@ export const supabaseService = {
     
     return data.map(f => {
       const isUser = f.user_id === userId;
-      return isUser ? f.friend : f.user;
+      const profile = isUser ? f.friend : f.user;
+      return Array.isArray(profile) ? profile[0] : profile;
     });
   },
 
@@ -345,5 +346,45 @@ export const supabaseService = {
       supabaseService.getWatchlist(friendId)
     ]);
     return { ratings, watchlist };
+  },
+
+  getRecentFriendRatings: async (userId: string) => {
+    if (!supabase) return [];
+    const friends = await supabaseService.getFriends(userId);
+    const friendIds = friends.map(f => f.id);
+    if (friendIds.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('ratings')
+      .select('user_id, movie_id, movie_data, timestamp, profiles(username)')
+      .in('user_id', friendIds)
+      .order('timestamp', { ascending: false })
+      .limit(10);
+      
+    if (error) throw error;
+    return data;
+  },
+
+  notifyFriends: async (userId: string, senderName: string, movieTitle: string, rating: Rating) => {
+    if (!supabase) return;
+    const friends = await supabaseService.getFriends(userId);
+    for (const friend of friends) {
+      const prefs = await supabaseService.getNotificationPreferences(friend.id);
+      if (!prefs) continue;
+      
+      let shouldNotify = false;
+      if (rating === 'loved' && prefs.notify_loved) shouldNotify = true;
+      if (rating === 'liked' && prefs.notify_liked) shouldNotify = true;
+      
+      if (shouldNotify) {
+        await supabaseService.createNotification({
+          user_id: friend.id,
+          sender_id: userId,
+          message: `${senderName} ${rating === 'loved' ? 'amou' : 'curtiu'} o filme ${movieTitle}`,
+          is_read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
   }
 };
