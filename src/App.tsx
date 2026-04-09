@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { GENRES, LEVELS } from './constants';
-import { fetchPopularMovies, fetchDiscoverMovies, searchMovies, fetchMovieById } from './services/tmdbService';
+import { fetchPopularMovies, fetchDiscoverMovies, searchMovies, fetchMovieById, fetchMovieTrailers, fetchMovieProviders } from './services/tmdbService';
 import { supabaseService } from './services/supabaseService';
 import { supabase } from './lib/supabase';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile } from './types';
@@ -38,6 +38,13 @@ export default function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [providers, setProviders] = useState<Record<number, any>>({});
+  
+  const getProviders = async (movieId: number) => {
+    if (providers[movieId]) return;
+    const p = await fetchMovieProviders(movieId);
+    setProviders(prev => ({ ...prev, [movieId]: p }));
+  };
   
   // Auth state
   const [authEmail, setAuthEmail] = useState('');
@@ -1048,6 +1055,19 @@ ${JSON.stringify(exportData, null, 2)}`;
                       <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
                       
+                      {/* Where to watch */}
+                      <div className="absolute top-4 left-4 z-10" onMouseEnter={() => getProviders(currentMovie.id)}>
+                        <div className="bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-white/20 transition-colors">
+                          <PlayCircle className="w-5 h-5 text-white" />
+                        </div>
+                        {providers[currentMovie.id] && (
+                          <div className="absolute top-14 left-0 bg-black/90 p-3 rounded-lg text-white text-xs w-48 z-20 border border-white/10 shadow-xl">
+                            <p className="font-bold mb-1 text-purple-400">Onde assistir:</p>
+                            {providers[currentMovie.id].flatrate?.map((p: any) => p.provider_name).join(', ') || 'Indisponível em streaming no momento'}
+                          </div>
+                        )}
+                      </div>
+
                       {/* Share Button */}
                       <button 
                         onClick={(e) => {
@@ -1186,6 +1206,18 @@ ${JSON.stringify(exportData, null, 2)}`;
                           </div>
                         )}
 
+                        <div className="absolute top-3 left-3" onMouseEnter={() => getProviders(movie.id)}>
+                          <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-lg cursor-pointer">
+                            <PlayCircle className="w-4 h-4 text-white" />
+                          </div>
+                          {providers[movie.id] && (
+                            <div className="absolute top-10 left-0 bg-black/90 p-3 rounded-lg text-white text-xs w-40 z-10">
+                              <p className="font-bold mb-1">Onde assistir:</p>
+                              {providers[movie.id].flatrate?.map((p: any) => p.provider_name).join(', ') || 'Indisponível'}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-2 group-hover:translate-y-0 transition-transform">
                           <h3 className="font-bold text-white leading-tight mb-1 line-clamp-2">{movie.title}</h3>
                           <div className="flex items-center gap-2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity delay-100">
@@ -1262,6 +1294,19 @@ ${JSON.stringify(exportData, null, 2)}`;
                     <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/90" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
                     
+                    {/* Where to watch */}
+                    <div className="absolute top-4 left-4 z-10" onMouseEnter={() => getProviders(dailyTip.id)}>
+                      <div className="bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-white/20 transition-colors">
+                        <PlayCircle className="w-5 h-5 text-white" />
+                      </div>
+                      {providers[dailyTip.id] && (
+                        <div className="absolute top-14 left-0 bg-black/90 p-3 rounded-lg text-white text-xs w-48 z-20 border border-white/10 shadow-xl">
+                          <p className="font-bold mb-1 text-purple-400">Onde assistir:</p>
+                          {providers[dailyTip.id].flatrate?.map((p: any) => p.provider_name).join(', ') || 'Indisponível em streaming no momento'}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Share Button */}
                     <button 
                       onClick={(e) => {

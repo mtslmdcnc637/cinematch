@@ -41,3 +41,10 @@ export const fetchMovieTrailers = async (movieId: number) => {
   const ptTrailers = trailers.filter((v: any) => v.iso_639_1 === 'pt');
   return ptTrailers.length > 0 ? ptTrailers : trailers;
 };
+
+export const fetchMovieProviders = async (movieId: number) => {
+  const response = await fetch(`${TMDB_API_BASE}/movie/${movieId}/watch/providers?api_key=${API_KEY}`);
+  const data = await response.json();
+  // Return providers for Brazil (BR)
+  return data.results?.BR || {};
+};
