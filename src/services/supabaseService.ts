@@ -349,6 +349,20 @@ export const supabaseService = {
     }
   },
 
+  askOracle: async (prompt: string) => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await supabase.functions.invoke('oracle', {
+      body: { prompt }
+    });
+
+    if (error) {
+      console.error("Oracle Error:", error);
+      throw new Error("Não foi possível consultar o Oráculo no momento.");
+    }
+
+    return data.result;
+  },
+
   getFriendTastes: async (friendId: string) => {
     if (!supabase) return null;
     const [ratings, watchlist] = await Promise.all([

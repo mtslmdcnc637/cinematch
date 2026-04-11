@@ -10,16 +10,15 @@ import { supabaseService } from './services/supabaseService';
 import { supabase } from './lib/supabase';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile } from './types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Library, Sparkles, User, Check, Star, Calendar, Clapperboard, Info, PlayCircle, Bookmark, Trash2, Lightbulb, RefreshCw, Search, Share2, Bot, X, Users, UserPlus, Bell } from 'lucide-react';
+import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Library, Sparkles, User, Check, Star, Calendar, Clapperboard, Info, PlayCircle, Bookmark, Trash2, Lightbulb, RefreshCw, Search, Share2, Bot, X, Users, UserPlus, Bell, Lock } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { Stories } from './components/Stories';
-import QuizApp from './components/quiz/QuizApp';
+import { useSubscription } from './contexts/SubscriptionContext';
 
 export default function App() {
-  // Check if we are on the quiz route
-  if (window.location.pathname === '/quiz') {
-    return <QuizApp />;
-  }
+  const navigate = useNavigate();
+  const { isPro, planType, swipesToday, dicasToday, incrementSwipes, incrementDicas } = useSubscription();
 
   const [currentPage, setCurrentPage] = useState('onboarding');
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -328,6 +327,15 @@ export default function App() {
   }, [unratedMovies.length, feedPage, activeGenre, isLoadingMore, isLoading, movies.length]);
 
   const generateDailyTip = async (forceReload = false) => {
+    if (forceReload) {
+      const canGetTip = await incrementDicas();
+      if (!canGetTip) {
+        toast.error('Limite diário de dicas atingido! Assine o PRO para continuar.', { id: 'limit-dica' });
+        navigate('/pricing');
+        return;
+      }
+    }
+
     setIsLoadingTip(true);
     let targetGenre = dailyTipGenre;
     let reason = "";
@@ -443,7 +451,17 @@ export default function App() {
     }
   };
 
-  const saveRating = (movie: Movie, rating: Rating) => {
+  const saveRating = async (movie: Movie, rating: Rating) => {
+    // Check limits for free users
+    if (rating !== 'not_seen') {
+      const canSwipe = await incrementSwipes();
+      if (!canSwipe) {
+        toast.error('Limite diário de swipes atingido! Assine o PRO para continuar.', { id: 'limit-swipe' });
+        navigate('/pricing');
+        return;
+      }
+    }
+
     const newRatings = [...ratings.filter(r => r.movieId !== movie.id), { movieId: movie.id, rating, timestamp: Date.now(), movie }];
     setRatings(newRatings);
     
@@ -557,25 +575,42 @@ export default function App() {
     }
   };
 
-  const handleExportForAI = () => {
+  const [oracleResult, setOracleResult] = useState<string | null>(null);
+  const [isOracleLoading, setIsOracleLoading] = useState(false);
+
+  const handleExportForAI = async () => {
+    if (!isPro) {
+      toast.error('O Oráculo de IA é exclusivo para assinantes PRO.', { id: 'limit-oracle' });
+      navigate('/pricing');
+      return;
+    }
+
     const exportData = {
       amei: ratings.filter(r => r.rating === 'loved').map(r => r.movie?.title).filter(Boolean),
       gostei: ratings.filter(r => r.rating === 'liked').map(r => r.movie?.title).filter(Boolean),
       nao_gostei: ratings.filter(r => r.rating === 'disliked').map(r => r.movie?.title).filter(Boolean),
-      pulei: ratings.filter(r => r.rating === 'not_seen').map(r => r.movie?.title).filter(Boolean),
-      ver_depois: watchlist.map(w => w.movie?.title).filter(Boolean)
     };
 
-    const prompt = `Atue como um especialista em cinema e recomendação de filmes. Abaixo está o meu histórico de interações com filmes em formato JSON, categorizado pelo que eu amei, gostei, não gostei, pulei (não quis ver) e os que adicionei para ver depois.
+    const prompt = `Aqui está o meu histórico de filmes:
+Amei: ${exportData.amei.join(', ')}
+Gostei: ${exportData.gostei.join(', ')}
+Não Gostei: ${exportData.nao_gostei.join(', ')}
 
-Com base nesse perfil de gosto, por favor, me recomende 5 filmes que NÃO estão nessa lista e que eu provavelmente vou gostar. 
-Apresente as recomendações separadas por gênero e inclua em qual plataforma de streaming eu posso assisti-los no Brasil.
+Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
 
-Aqui estão os meus dados:
-${JSON.stringify(exportData, null, 2)}`;
-
-    navigator.clipboard.writeText(prompt);
+    setIsOracleLoading(true);
     setShowExportModal(true);
+    setOracleResult(null);
+
+    try {
+      const result = await supabaseService.askOracle(prompt);
+      setOracleResult(result);
+    } catch (error: any) {
+      toast.error(error.message || 'Erro ao consultar o Oráculo');
+      setShowExportModal(false);
+    } finally {
+      setIsOracleLoading(false);
+    }
   };
 
   const addToWatchlist = (movie: Movie) => {
@@ -1962,16 +1997,19 @@ ${JSON.stringify(exportData, null, 2)}`;
                 <div className="glass-card rounded-[2rem] p-8 flex flex-col justify-center items-center text-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 pointer-events-none" />
                   <Bot className="w-12 h-12 text-blue-400 mb-4" />
-                  <h3 className="text-xl font-bold mb-2 font-display">Consultor de IA</h3>
+                  <h3 className="text-xl font-bold mb-2 font-display flex items-center gap-2">
+                    Oráculo de IA
+                    {!isPro && <span className="text-[10px] bg-purple-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">PRO</span>}
+                  </h3>
                   <p className="text-gray-400 text-sm mb-6">
-                    Exporte seu histórico de filmes e peça recomendações personalizadas para o ChatGPT, Claude ou Gemini.
+                    Deixe a Inteligência Artificial encontrar o filme perfeito com base no seu gosto.
                   </p>
                   <button
                     onClick={handleExportForAI}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 px-6 rounded-full hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] transition-all flex items-center justify-center gap-2"
+                    className={`w-full text-white font-bold py-3 px-6 rounded-full transition-all flex items-center justify-center gap-2 ${isPro ? 'bg-gradient-to-r from-blue-600 to-purple-600 hover:shadow-[0_0_20px_rgba(59,130,246,0.4)]' : 'bg-white/10 hover:bg-white/20 border border-white/10'}`}
                   >
-                    <Sparkles className="w-5 h-5" />
-                    Gerar Prompt para IA
+                    {isPro ? <Sparkles className="w-5 h-5" /> : <Lock className="w-4 h-4 text-gray-400" />}
+                    {isPro ? 'Consultar Oráculo' : 'Desbloquear Oráculo'}
                   </button>
                 </div>
               </div>
@@ -2229,10 +2267,10 @@ ${JSON.stringify(exportData, null, 2)}`;
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-[#111] border border-blue-500/30 rounded-[2rem] p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+              className="bg-[#111] border border-emerald-500/30 rounded-[2rem] p-8 max-w-lg w-full shadow-2xl relative overflow-hidden max-h-[80vh] flex flex-col"
               onClick={e => e.stopPropagation()}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 pointer-events-none" />
               
               <button 
                 onClick={() => setShowExportModal(false)}
@@ -2241,30 +2279,33 @@ ${JSON.stringify(exportData, null, 2)}`;
                 <X className="w-5 h-5 text-gray-300" />
               </button>
 
-              <div className="text-center relative z-10">
-                <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(59,130,246,0.5)]">
-                  <Check className="w-8 h-8 text-white" />
+              <div className="text-center relative z-10 flex-shrink-0">
+                <div className="w-16 h-16 mx-auto bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
+                  <Bot className="w-8 h-8 text-white" />
                 </div>
                 
-                <h3 className="text-2xl font-bold text-white mb-4 font-display">Prompt Copiado!</h3>
-                
-                <div className="text-gray-300 space-y-4 text-sm text-left bg-black/40 p-6 rounded-2xl border border-white/5">
-                  <p>
-                    O seu histórico de filmes e as instruções já foram copiados para a sua área de transferência.
-                  </p>
-                  <p className="font-medium text-white">Como usar:</p>
-                  <ol className="list-decimal list-inside space-y-2 text-gray-400">
-                    <li>Abra o seu assistente de IA favorito (ChatGPT, Claude, Gemini, etc).</li>
-                    <li>Cole o texto que acabou de ser copiado.</li>
-                    <li>Envie a mensagem e aguarde as suas 5 recomendações personalizadas!</li>
-                  </ol>
-                </div>
+                <h3 className="text-2xl font-bold text-white mb-4 font-display">Oráculo de IA</h3>
+              </div>
 
+              <div className="relative z-10 overflow-y-auto flex-1 pr-2 custom-scrollbar">
+                {isOracleLoading ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <Sparkles className="w-10 h-10 text-emerald-400 animate-spin-slow mb-4" />
+                    <p className="text-gray-400">O Oráculo está analisando seu perfil...</p>
+                  </div>
+                ) : oracleResult ? (
+                  <div className="text-gray-300 text-sm text-left bg-black/40 p-6 rounded-2xl border border-white/5 whitespace-pre-wrap">
+                    {oracleResult}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="mt-6 relative z-10 flex-shrink-0">
                 <button 
                   onClick={() => setShowExportModal(false)} 
-                  className="w-full mt-6 py-4 rounded-full bg-white/10 text-white font-bold hover:bg-white/20 transition-colors border border-white/10"
+                  className="w-full py-4 rounded-full bg-white/10 text-white font-bold hover:bg-white/20 transition-colors border border-white/10"
                 >
-                  Entendi
+                  Fechar
                 </button>
               </div>
             </motion.div>

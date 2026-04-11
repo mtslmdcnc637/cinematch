@@ -117,11 +117,11 @@ export default function QuizApp() {
               </div>
               
               <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6">
-                O plano inteligente que acaba com a indecisão e te ajuda a <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500">assistir melhor.</span>
+                Descubra qual é o seu Perfil Cinematográfico e pare de <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500">perder 40 minutos</span> escolhendo o que assistir.
               </h1>
               
               <p className="text-gray-400 text-lg mb-10 max-w-md">
-                Responda a este quiz de 1 minuto para gerar um algoritmo 100% focado no seu gosto pessoal.
+                Responda a este quiz rápido para gerar um algoritmo 100% focado no seu gosto pessoal.
               </p>
               
               <button 
@@ -131,13 +131,34 @@ export default function QuizApp() {
                 Começar Agora <ArrowRight className="w-5 h-5" />
               </button>
 
-              <div className="mt-12 flex items-center gap-4 text-sm text-gray-500">
-                <div className="flex -space-x-2">
-                  {[1,2,3,4].map(i => (
-                    <div key={i} className="w-8 h-8 rounded-full bg-gray-800 border-2 border-[#0a0a0a] flex items-center justify-center text-xs">👤</div>
-                  ))}
+              {/* Testimonials Section */}
+              <div className="mt-16 w-full max-w-md text-left">
+                <p className="text-sm text-gray-500 uppercase tracking-wider font-bold mb-4 text-center">O que dizem nossos usuários</p>
+                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl mb-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-fuchsia-500 flex items-center justify-center font-bold text-white">M</div>
+                    <div>
+                      <p className="font-bold text-sm text-white">Mariana S.</p>
+                      <div className="flex text-amber-400">
+                        <Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-300 text-sm italic">"Finalmente parei de brigar com meu namorado pra escolher filme. O app sempre acerta o que a gente quer ver!"</p>
                 </div>
-                <span>Junte-se a +10.000 cinéfilos</span>
+                
+                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white">R</div>
+                    <div>
+                      <p className="font-bold text-sm text-white">Rafael C.</p>
+                      <div className="flex text-amber-400">
+                        <Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" /><Star className="w-3 h-3 fill-current" />
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-300 text-sm italic">"A função de mostrar em qual streaming o filme está salvou minha vida. Vale cada centavo do plano PRO."</p>
+                </div>
               </div>
             </motion.div>
           )}
@@ -165,7 +186,7 @@ export default function QuizApp() {
                     <div 
                       key={phase.id} 
                       className={`h-full transition-all duration-500 ${currentQuestion.phase > phase.id ? 'bg-purple-500' : currentQuestion.phase === phase.id ? 'bg-purple-500' : 'bg-transparent'}`}
-                      style={{ width: '25%', opacity: currentQuestion.phase === phase.id ? 0.5 + (0.5 * (currentQuestionIndex % 2)) : 1 }}
+                      style={{ width: `${100 / QUIZ_PHASES.length}%`, opacity: currentQuestion.phase === phase.id ? 0.5 + (0.5 * (currentQuestionIndex % 2)) : 1 }}
                     />
                   ))}
                 </div>
@@ -352,10 +373,10 @@ export default function QuizApp() {
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold mb-4">Escolha seu acesso Pro</h2>
                 
-                {/* Urgency Timer */}
-                <div className="inline-flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-2 rounded-full font-mono font-bold">
-                  <Clock className="w-4 h-4" />
-                  Desconto expira em: {formatTime(timeLeft)}
+                {/* Real Urgency */}
+                <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 text-purple-400 px-4 py-2 rounded-full font-medium text-sm">
+                  <Star className="w-4 h-4 fill-current" />
+                  Preço de lançamento válido para os primeiros 100 usuários
                 </div>
               </div>
 
