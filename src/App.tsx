@@ -13,8 +13,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Library, Sparkles, User, Check, Star, Calendar, Clapperboard, Info, PlayCircle, Bookmark, Trash2, Lightbulb, RefreshCw, Search, Share2, Bot, X, Users, UserPlus, Bell } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { Stories } from './components/Stories';
+import QuizApp from './components/quiz/QuizApp';
 
 export default function App() {
+  // Check if we are on the quiz route
+  if (window.location.pathname === '/quiz') {
+    return <QuizApp />;
+  }
+
   const [currentPage, setCurrentPage] = useState('onboarding');
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
