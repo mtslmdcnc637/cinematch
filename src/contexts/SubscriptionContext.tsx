@@ -32,7 +32,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
   const [stripeCustomerId, setStripeCustomerId] = useState<string | undefined>();
 
   const fetchSubscriptionData = useCallback(async () => {
-    if (!userId) {
+    if (!userId || !supabase) {
       setIsLoading(false);
       return;
     }
@@ -82,7 +82,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
 
   // Real-time subscription listener
   useEffect(() => {
-    if (!userId) return;
+
+
+    if (!userId || !supabase) return;
 
     const channel = supabase
       .channel('subscription-changes')
@@ -102,7 +104,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
   }, [userId, fetchSubscriptionData]);
 
   const incrementSwipes = useCallback(async () => {
-    if (!userId) return false;
+    if (!userId || !supabase) return false;
     if (planType !== 'free') return true; // Unlimited for PRO
     if (swipesToday >= FREE_MAX_SWIPES) return false;
 
@@ -121,7 +123,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
   }, [userId, planType, swipesToday]);
 
   const incrementDicas = useCallback(async () => {
-    if (!userId) return false;
+    if (!userId || !supabase) return false;
     if (planType !== 'free') return true; // Unlimited for PRO
     if (dicasToday >= FREE_MAX_DICAS) return false;
 
