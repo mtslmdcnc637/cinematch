@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Target, Zap, Heart, Clock, Star, Film, Tv, Coffee, Moon, TrendingUp, ShieldCheck, ArrowRight, CheckCircle2, Lock, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { QUIZ_PHASES, QUIZ_QUESTIONS, LOADING_TEXTS, RESULT_BENEFITS, PRICING_PLANS } from '../../config/quizData';

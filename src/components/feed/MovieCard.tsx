@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Star, Calendar, PlayCircle, Bookmark, Share2 } from 'lucide-react';
 import { Movie, Rating } from '../../types';
 import { WhereToWatch } from './WhereToWatch';

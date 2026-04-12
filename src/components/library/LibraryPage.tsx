@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Heart, ThumbsUp, ThumbsDown, EyeOff, Bookmark, Trash2, Library, Star } from 'lucide-react';
 import { Movie, Rating, UserRating, WatchlistItem } from '../../types';
 

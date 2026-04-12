@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchMovieTrailers } from '../services/tmdbService';
 import { supabaseService } from '../services/supabaseService';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Play, X } from 'lucide-react';
 
 interface StoryItem {

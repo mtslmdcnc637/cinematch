@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, Film, Star, Bot, Library } from 'lucide-react';
 
 /* ──────────── Level Up Modal ──────────── */

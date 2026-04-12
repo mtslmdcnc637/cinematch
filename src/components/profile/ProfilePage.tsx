@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { User, Bell, Bot, Sparkles, Lock, Camera, Globe, Link, Loader2 } from 'lucide-react';
 import { UserProfile, UserRating, WatchlistItem } from '../../types';
 import { GENRES, LEVELS } from '../../constants';

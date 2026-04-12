@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Library, Lightbulb, Search, Users, User } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';

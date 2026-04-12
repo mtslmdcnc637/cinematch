@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Users, UserPlus, User, Check, X, Search, RefreshCw, Sparkles } from 'lucide-react';
 import { Stories } from '../Stories';
 

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { Sparkles, Check } from 'lucide-react';
 import { Movie, Rating } from '../../types';
 import { GENRES } from '../../constants';

@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { User, Star, Film, Crown } from 'lucide-react';
 import { ProBadge, ProAvatarBorder } from '../common/ProBadge';
 import { GENRES } from '../../constants';

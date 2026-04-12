@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Check, Film } from 'lucide-react';
 import { GENRES } from '../../constants';
 import { supabaseService } from '../../services/supabaseService';
