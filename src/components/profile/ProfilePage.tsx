@@ -418,7 +418,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
             <button
               type="button"
-              onClick={() => handleGoogleAuth ? handleGoogleAuth() : toast.info('Login com Google estará disponível em breve!', { icon: '⏳' })}
+              onClick={handleGoogleAuth}
               className="w-full bg-white text-black font-bold py-3 px-4 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
             >
               <User className="w-5 h-5" />

@@ -101,7 +101,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
     };
   }, [userId, fetchSubscriptionData]);
 
-  const incrementSwipes = async () => {
+  const incrementSwipes = useCallback(async () => {
     if (!userId) return false;
     if (planType !== 'free') return true; // Unlimited for PRO
     if (swipesToday >= FREE_MAX_SWIPES) return false;
@@ -118,9 +118,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
       .eq('id', userId);
 
     return true;
-  };
+  }, [userId, planType, swipesToday]);
 
-  const incrementDicas = async () => {
+  const incrementDicas = useCallback(async () => {
     if (!userId) return false;
     if (planType !== 'free') return true; // Unlimited for PRO
     if (dicasToday >= FREE_MAX_DICAS) return false;
@@ -137,7 +137,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
       .eq('id', userId);
 
     return true;
-  };
+  }, [userId, planType, dicasToday]);
 
   return (
     <SubscriptionContext.Provider value={{

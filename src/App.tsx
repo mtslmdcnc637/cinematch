@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Library, Lightbulb, Search, Users, User } from 'lucide-react';
 import { Toaster, toast } from 'sonner';
@@ -40,6 +40,7 @@ const navItems = [
 
 export default function App() {
   const navigate = useNavigate();
+  const handleNavigateToPricing = useCallback(() => navigate('/pricing'), [navigate]);
   const { isPro, planType, incrementSwipes, incrementDicas } = useSubscription();
   const { trackEvent, trackPageView } = useAnalytics();
 
@@ -65,7 +66,6 @@ export default function App() {
     setIsInitialLoading: setProfileInitialLoading, loadUserData,
   } = useProfile({
     user,
-    onGenresLoaded: (genres) => { setSelectedGenres(genres); },
   });
 
   // Friends
@@ -89,7 +89,7 @@ export default function App() {
     user, userProfile, setUserProfile,
     setShowLevelUpModal, setNewLevelData,
     incrementSwipes, isPro,
-    onNavigateToPricing: () => navigate('/pricing'),
+    onNavigateToPricing: handleNavigateToPricing,
     friends,
   });
 
@@ -104,7 +104,7 @@ export default function App() {
   } = useMovies({
     user, ratings, watchlist, selectedGenres, currentPage,
     incrementDicas,
-    onNavigateToPricing: () => navigate('/pricing'),
+    onNavigateToPricing: handleNavigateToPricing,
   });
 
   // Load user data when user changes
@@ -134,8 +134,6 @@ export default function App() {
         });
     }
   }, [user, currentPage]);
-
-  const handleNavigateToPricing = () => navigate('/pricing');
 
   const getRatingIcon = (rating: string, className = "w-5 h-5") => {
     switch (rating) {
@@ -216,7 +214,10 @@ export default function App() {
                   selectedGenres={selectedGenres}
                   toggleGenre={toggleGenre}
                   onContinue={handleSaveGenres}
-                  onLogin={() => handleEmailAuth({ preventDefault: () => {} } as any)}
+                  onLogin={() => {
+                    setIsSignUp(false);
+                    setCurrentPage('profile');
+                  }}
                   user={user}
                   authEmail={authEmail}
                   setAuthEmail={setAuthEmail}

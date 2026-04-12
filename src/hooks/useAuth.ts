@@ -84,12 +84,7 @@ export function useAuth(): UseAuthReturn {
   };
 
   const handleGoogleAuth = async () => {
-    try {
-      await supabaseService.signInWithGoogle();
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Erro ao entrar com Google';
-      toast.error(message);
-    }
+    toast.info('Login com Google estará disponível em breve!', { icon: '⏳' });
   };
 
   const handleSignOut = async () => {

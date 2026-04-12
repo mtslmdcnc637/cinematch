@@ -306,11 +306,17 @@ export function useMovies({
   );
 
   // Auto-generate tip when navigating to daily_tip page
+  const hasGeneratedTipRef = useRef(false);
   useEffect(() => {
     if (currentPage === 'daily_tip') {
-      generateDailyTip();
+      if (!hasGeneratedTipRef.current) {
+        generateDailyTip();
+        hasGeneratedTipRef.current = true;
+      }
+    } else {
+      hasGeneratedTipRef.current = false;
     }
-  }, [currentPage, dailyTipGenre, generateDailyTip]);
+  }, [currentPage]); // Intentionally omitting generateDailyTip and dailyTipGenre to prevent loops
 
   return {
     movies,

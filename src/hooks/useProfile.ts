@@ -43,7 +43,6 @@ const defaultPrefs: NotificationPrefs = {
 
 interface UseProfileParams {
   user: { id: string; email?: string } | null;
-  onGenresLoaded: (genres: number[]) => void;
 }
 
 interface UseProfileReturn {
@@ -75,7 +74,7 @@ interface UseProfileReturn {
   loadUserData: (ratingsSetter: Dispatch<SetStateAction<UserRating[]>>, watchlistSetter: Dispatch<SetStateAction<WatchlistItem[]>>) => void;
 }
 
-export function useProfile({ user, onGenresLoaded }: UseProfileParams): UseProfileReturn {
+export function useProfile({ user }: UseProfileParams): UseProfileReturn {
   const [userProfile, setUserProfile] = useState<UserProfile>({ xp: 0, level: 1 });
   const [currentPage, setCurrentPage] = useState('onboarding');
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -121,7 +120,6 @@ export function useProfile({ user, onGenresLoaded }: UseProfileParams): UseProfi
             setUserProfile(profile);
             if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
               setSelectedGenres(profile.selectedGenres);
-              onGenresLoaded(profile.selectedGenres);
               setCurrentPage('feed');
             }
           } else {
@@ -148,7 +146,7 @@ export function useProfile({ user, onGenresLoaded }: UseProfileParams): UseProfi
         setIsInitialLoading(false);
       }
     },
-    [user, onGenresLoaded]
+    [user]
   );
 
   const toggleGenre = useCallback((id: number) => {
