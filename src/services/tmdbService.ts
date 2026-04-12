@@ -1,50 +1,64 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 /// <reference types="vite/client" />
+import { supabase } from '../lib/supabase';
 import { TMDB_API_BASE } from '../constants';
 
-// NOTE: In a real production app, this API key should be handled on the server.
-// For this prototype, we'll assume the user has a TMDb API key.
-const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
+/**
+ * All TMDB API calls go through the Supabase Edge Function proxy (tmdb-proxy)
+ * so the API key is never exposed on the client side.
+ */
+
+async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
+  if (!supabase) throw new Error('Supabase not initialized');
+
+  const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
+    body: { endpoint, params },
+  });
+
+  if (error) throw error;
+  return data as T;
+}
 
 export const fetchPopularMovies = async (page = 1) => {
-  const response = await fetch(`${TMDB_API_BASE}/movie/popular?api_key=${API_KEY}&language=pt-BR&page=${page}`);
-  const data = await response.json();
+  const data = await tmdbFetch<{ results: any[] }>('movie/popular', { language: 'pt-BR', page: String(page) });
   return data.results || [];
 };
 
 export const fetchDiscoverMovies = async (page = 1, genreId?: number) => {
-  const url = genreId
-    ? `${TMDB_API_BASE}/discover/movie?api_key=${API_KEY}&language=pt-BR&page=${page}&with_genres=${genreId}&sort_by=popularity.desc`
-    : `${TMDB_API_BASE}/movie/popular?api_key=${API_KEY}&language=pt-BR&page=${page}`;
-  const response = await fetch(url);
-  const data = await response.json();
+  const params: Record<string, string> = { language: 'pt-BR', page: String(page) };
+  if (genreId) {
+    params.with_genres = String(genreId);
+    params.sort_by = 'popularity.desc';
+    const data = await tmdbFetch<{ results: any[] }>('discover/movie', params);
+    return data.results || [];
+  }
+  const data = await tmdbFetch<{ results: any[] }>('movie/popular', params);
   return data.results || [];
 };
 
 export const searchMovies = async (query: string) => {
-  const response = await fetch(`${TMDB_API_BASE}/search/movie?api_key=${API_KEY}&language=pt-BR&query=${query}`);
-  const data = await response.json();
+  const data = await tmdbFetch<{ results: any[] }>('search/movie', { language: 'pt-BR', query });
   return data.results || [];
 };
 
 export const fetchMovieById = async (movieId: number) => {
-  const response = await fetch(`${TMDB_API_BASE}/movie/${movieId}?api_key=${API_KEY}&language=pt-BR`);
-  const data = await response.json();
-  return data;
+  return tmdbFetch(`movie/${movieId}`, { language: 'pt-BR' });
 };
 
 export const fetchMovieTrailers = async (movieId: number) => {
-  const response = await fetch(`${TMDB_API_BASE}/movie/${movieId}/videos?api_key=${API_KEY}&language=pt-BR`);
-  const data = await response.json();
-  const trailers = data.results.filter((v: any) => v.type === 'Trailer' && v.site === 'YouTube');
-  
-  // Prioriza trailers em português
-  const ptTrailers = trailers.filter((v: any) => v.iso_639_1 === 'pt');
+  const data = await tmdbFetch<{ results: Array<{ type: string; site: string; iso_639_1: string; key: string }> }>(`movie/${movieId}/videos`, { language: 'pt-BR' });
+  const trailers = (data.results || []).filter(v => v.type === 'Trailer' && v.site === 'YouTube');
+
+  // Prioritize Portuguese trailers
+  const ptTrailers = trailers.filter(v => v.iso_639_1 === 'pt');
   return ptTrailers.length > 0 ? ptTrailers : trailers;
 };
 
 export const fetchMovieProviders = async (movieId: number) => {
-  const response = await fetch(`${TMDB_API_BASE}/movie/${movieId}/watch/providers?api_key=${API_KEY}`);
-  const data = await response.json();
-  // Return providers for Brazil (BR)
+  const data = await tmdbFetch<{ results?: { BR?: any } }>(`movie/${movieId}/watch/providers`);
   return data.results?.BR || {};
 };

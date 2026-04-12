@@ -140,6 +140,18 @@ export const QUIZ_QUESTIONS = [
       { id: 'cancel', label: 'Cancelarem minhas séries favoritas' }
     ]
   },
+  {
+    id: 'decision',
+    phase: 3,
+    title: 'Quando você não sabe o que assistir, o que acontece?',
+    type: 'single',
+    options: [
+      { id: 'paralyzed', label: 'Fico paralisado(a) rolando o catálogo por minutos' },
+      { id: 'random', label: 'Escolho qualquer um e torço para ser bom' },
+      { id: 'ask', label: 'Pergunto para alguém o que está assistindo' },
+      { id: 'revisit', label: 'Acabo reassistindo algo que já vi' }
+    ]
+  },
 
   // FASE 4: PERSONALIDADE
   {
@@ -162,6 +174,18 @@ export const QUIZ_QUESTIONS = [
       { id: 'love', label: 'Amo! Quanto mais confuso, melhor' },
       { id: 'hate', label: 'Odeio, prefiro histórias lineares e claras' },
       { id: 'depends', label: 'Gosto, desde que faça sentido na história' }
+    ]
+  },
+  {
+    id: 'rewatch',
+    phase: 4,
+    title: 'Como você se sente sobre reassistir filmes?',
+    type: 'single',
+    options: [
+      { id: 'always', label: 'Adoro! Sempre descubro detalhes novos' },
+      { id: 'never', label: 'Nunca reassisto, a vida é curta demais' },
+      { id: 'comfort', label: 'Reassisto meus favoritos quando preciso de conforto' },
+      { id: 'rarely', label: 'Raramente, só se passou muito tempo' }
     ]
   },
 
@@ -241,3 +265,127 @@ export const PRICING_PLANS = [
     savings: 'Melhor Custo-Benefício'
   }
 ];
+
+// ──────────── QUIZ SCORING & PERSONALITIES ────────────
+
+export interface QuizPersonality {
+  id: string;
+  title: string;
+  emoji: string;
+  description: string;
+  color: string;
+}
+
+export const QUIZ_PERSONALITIES: QuizPersonality[] = [
+  {
+    id: 'explorer',
+    title: 'Explorador Cinematográfico',
+    emoji: '🗺️',
+    description: 'Você ama descobrir joias escondidas e está sempre em busca de algo novo. Seu feed ideal é uma seleção curada de filmes que ninguém te contou.',
+    color: 'from-blue-500 to-cyan-400',
+  },
+  {
+    id: 'emotion_driven',
+    title: 'Espectador Emocional',
+    emoji: '💔',
+    description: 'Você assiste para sentir. Chora, ri e se emociona com facilidade. Filmes que tocam a alma são sua especialidade.',
+    color: 'from-pink-500 to-rose-400',
+  },
+  {
+    id: 'analyst',
+    title: 'Crítico Analítico',
+    emoji: '🔍',
+    description: 'Você pesquisa antes de assistir, compara notas e lê resenhas. Quer qualidade comprovada e nada de enrolação.',
+    color: 'from-purple-500 to-violet-400',
+  },
+  {
+    id: 'social_watcher',
+    title: 'Maratonista Social',
+    emoji: '🍿',
+    description: 'Para você, filme é desculpa para reunir a galera. O importante é a experiência compartilhada e a diversão garantida.',
+    color: 'from-amber-500 to-orange-400',
+  },
+  {
+    id: 'nostalgic',
+    title: 'Nostálgico por Natureza',
+    emoji: '📼',
+    description: 'Você ama reassistir clássicos e tem carinho especial por filmes do passado. Conforto e familiaridade são suas palavras-chave.',
+    color: 'from-emerald-500 to-teal-400',
+  },
+];
+
+export function calculatePersonality(answers: Record<string, string | string[]>): QuizPersonality {
+  const scores: Record<string, number> = {
+    explorer: 0,
+    emotion_driven: 0,
+    analyst: 0,
+    social_watcher: 0,
+    nostalgic: 0,
+  };
+
+  // Goal question
+  if (answers.goal === 'learn') scores.explorer += 3;
+  if (answers.goal === 'feel') scores.emotion_driven += 3;
+  if (answers.goal === 'distract') scores.social_watcher += 2;
+  if (answers.goal === 'relax') scores.nostalgic += 2;
+
+  // Genres
+  const genres = Array.isArray(answers.genres) ? answers.genres : [];
+  if (genres.includes('scifi')) scores.explorer += 2;
+  if (genres.includes('drama')) scores.emotion_driven += 2;
+  if (genres.includes('doc')) scores.analyst += 2;
+  if (genres.includes('comedy')) scores.social_watcher += 2;
+  if (genres.includes('thriller')) scores.analyst += 1;
+  if (genres.includes('romance')) scores.emotion_driven += 1;
+
+  // Era
+  if (answers.era === 'classics') scores.nostalgic += 3;
+  if (answers.era === 'new') scores.explorer += 2;
+  if (answers.era === 'any') scores.social_watcher += 1;
+
+  // Company
+  if (answers.company === 'friends') scores.social_watcher += 3;
+  if (answers.company === 'alone') scores.emotion_driven += 2;
+  if (answers.company === 'partner') scores.nostalgic += 1;
+
+  // Struggle
+  if (answers.struggle === 'time_lost') scores.analyst += 2;
+  if (answers.struggle === 'where') scores.explorer += 1;
+  if (answers.struggle === 'sleep') scores.emotion_driven += 1;
+
+  // Annoyance
+  if (answers.annoyance === 'bad_algo') scores.explorer += 2;
+  if (answers.annoyance === 'interface') scores.analyst += 1;
+
+  // Recommendations
+  if (answers.recommendations === 'research') scores.analyst += 3;
+  if (answers.recommendations === 'trust') scores.social_watcher += 2;
+  if (answers.recommendations === 'ignore') scores.nostalgic += 1;
+
+  // Plot twists
+  if (answers.plot_twists === 'love') scores.explorer += 2;
+  if (answers.plot_twists === 'hate') scores.nostalgic += 1;
+  if (answers.plot_twists === 'depends') scores.analyst += 1;
+
+  // NEW: Decision fatigue question
+  if (answers.decision === 'paralyzed') scores.analyst += 2;
+  if (answers.decision === 'random') scores.social_watcher += 1;
+  if (answers.decision === 'ask') scores.social_watcher += 2;
+
+  // NEW: Rewatch question
+  if (answers.rewatch === 'always') scores.nostalgic += 3;
+  if (answers.rewatch === 'never') scores.explorer += 2;
+  if (answers.rewatch === 'comfort') scores.emotion_driven += 2;
+
+  // Find max score
+  let maxScore = 0;
+  let maxId = 'explorer';
+  for (const [id, score] of Object.entries(scores)) {
+    if (score > maxScore) {
+      maxScore = score;
+      maxId = id;
+    }
+  }
+
+  return QUIZ_PERSONALITIES.find(p => p.id === maxId) || QUIZ_PERSONALITIES[0];
+}

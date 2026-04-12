@@ -5,17 +5,16 @@ export const supabaseService = {
   // Auth
   signUpWithEmail: async (email: string, password: string, username: string) => {
     if (!supabase) throw new Error('Supabase não configurado');
-    const { data, error } = await supabase.auth.signUp({ 
-      email, 
+    const { data, error } = await supabase.auth.signUp({
+      email,
       password,
       options: {
         data: { username }
       }
     });
     if (error) throw error;
-    
+
     if (data.user) {
-      // Cria ou atualiza o perfil na tabela profiles
       await supabase
         .from('profiles')
         .upsert({
@@ -25,7 +24,7 @@ export const supabaseService = {
           level: 1
         });
     }
-    
+
     return data;
   },
 
@@ -131,13 +130,12 @@ export const supabaseService = {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, avatar_url, xp, level, selected_genres, email')
+        .select('id, username, avatar_url, xp, level, selected_genres, email, subscription_status, subscription_plan')
         .eq('id', userId)
         .single();
-      
+
       if (error) {
-        if (error.code === 'PGRST116') return null; // Not found
-        console.error("Supabase getProfile error:", error);
+        if (error.code === 'PGRST116') return null;
         throw error;
       }
       return {
@@ -145,7 +143,6 @@ export const supabaseService = {
         selectedGenres: data.selected_genres || []
       };
     } catch (e) {
-      console.error("Exception in getProfile:", e);
       throw e;
     }
   },
@@ -164,12 +161,8 @@ export const supabaseService = {
           avatar_url: updates.avatar_url,
           email: updates.email
         }, { onConflict: 'id' });
-      if (error) {
-        console.error("Supabase updateProfile error:", error);
-        throw error;
-      }
+      if (error) throw error;
     } catch (e) {
-      console.error("Exception in updateProfile:", e);
       throw e;
     }
   },
@@ -238,7 +231,6 @@ export const supabaseService = {
 
   getFriends: async (userId: string) => {
     if (!supabase) return [];
-    // Get friends where user is either user_id or friend_id
     const { data, error } = await supabase
       .from('friends')
       .select(`
@@ -251,14 +243,9 @@ export const supabaseService = {
       `)
       .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
       .eq('status', 'accepted');
-    
-    if (error) {
-      console.error("Error fetching friends:", error);
-      throw error;
-    }
-    
-    console.log("Friends data:", data);
-    
+
+    if (error) throw error;
+
     return data.map(f => {
       const isUser = f.user_id === userId;
       const profile = isUser ? f.friend : f.user;
@@ -278,7 +265,7 @@ export const supabaseService = {
     return data;
   },
 
-  updateNotificationPreferences: async (userId: string, prefs: any) => {
+  updateNotificationPreferences: async (userId: string, prefs: Record<string, boolean>) => {
     if (!supabase) return;
     const { error } = await supabase
       .from('profiles')
@@ -307,17 +294,12 @@ export const supabaseService = {
     if (error) throw error;
   },
 
-  createNotification: async (notification: any) => {
+  createNotification: async (notification: Record<string, unknown>) => {
     if (!supabase) return;
-    console.log("Creating notification:", notification);
-    const { error, data } = await supabase
+    const { error } = await supabase
       .from('notifications')
       .insert(notification);
-    if (error) {
-      console.error("Error creating notification:", error);
-      throw error;
-    }
-    console.log("Notification created successfully:", data);
+    if (error) throw error;
   },
 
   getDailyTip: async (userId: string) => {
@@ -327,10 +309,7 @@ export const supabaseService = {
       .select('daily_tip_id, daily_tip_date')
       .eq('id', userId)
       .single();
-    if (error) {
-      console.error("Supabase getDailyTip error:", error);
-      return null;
-    }
+    if (error) return null;
     return data;
   },
 
@@ -338,28 +317,22 @@ export const supabaseService = {
     if (!supabase) return;
     const { error } = await supabase
       .from('profiles')
-      .update({ 
+      .update({
         daily_tip_id: movieId,
         daily_tip_date: new Date().toISOString().split('T')[0]
       })
       .eq('id', userId);
-    if (error) {
-      console.error("Supabase saveDailyTip error:", error);
-      throw error;
-    }
+    if (error) throw error;
   },
 
+  // Oracle AI (via Edge Function)
   askOracle: async (prompt: string) => {
     if (!supabase) throw new Error("Supabase client not initialized");
     const { data, error } = await supabase.functions.invoke('oracle', {
       body: { prompt }
     });
 
-    if (error) {
-      console.error("Oracle Error:", error);
-      throw new Error("Não foi possível consultar o Oráculo no momento.");
-    }
-
+    if (error) throw new Error("Não foi possível consultar o Oráculo no momento.");
     return data.result;
   },
 
@@ -376,7 +349,6 @@ export const supabaseService = {
     if (!supabase) return [];
     const friends = await supabaseService.getFriends(userId);
     const friendIds = friends.map(f => f.id);
-    console.log("Friend IDs for recent ratings:", friendIds);
     if (friendIds.length === 0) return [];
 
     const { data, error } = await supabase
@@ -385,12 +357,8 @@ export const supabaseService = {
       .in('user_id', friendIds)
       .order('timestamp', { ascending: false })
       .limit(10);
-      
-    if (error) {
-      console.error("Error fetching recent friend ratings:", error);
-      throw error;
-    }
-    console.log("Recent friend ratings:", data);
+
+    if (error) throw error;
     return data;
   },
 
@@ -400,11 +368,11 @@ export const supabaseService = {
     for (const friend of friends) {
       const prefs = await supabaseService.getNotificationPreferences(friend.id);
       if (!prefs) continue;
-      
+
       let shouldNotify = false;
       if (rating === 'loved' && prefs.notify_loved) shouldNotify = true;
       if (rating === 'liked' && prefs.notify_liked) shouldNotify = true;
-      
+
       if (shouldNotify) {
         await supabaseService.createNotification({
           user_id: friend.id,
@@ -415,5 +383,137 @@ export const supabaseService = {
         });
       }
     }
-  }
+  },
+
+  // Stripe integration
+  createCheckoutSession: async (planId: string) => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase.functions.invoke('stripe-checkout', {
+      body: {
+        plan_id: planId,
+        user_id: session.user.id,
+        user_email: session.user.email,
+      },
+    });
+    if (error) throw new Error(error.message || 'Erro ao criar sessão de checkout');
+    return data;
+  },
+
+  createPortalSession: async () => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase.functions.invoke('stripe-portal', {
+      body: { user_id: session.user.id },
+    });
+    if (error) throw new Error(error.message || 'Erro ao abrir portal');
+    return data;
+  },
+
+  // LGPD Consent
+  getConsents: async (userId: string) => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('user_consents')
+      .select('*')
+      .eq('user_id', userId);
+    if (error) throw error;
+    return data;
+  },
+
+  saveConsents: async (userId: string, consents: Array<{ consent_type: string; granted: boolean }>) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('user_consents')
+      .upsert(
+        consents.map(c => ({
+          user_id: userId,
+          consent_type: c.consent_type,
+          granted: c.granted,
+          granted_at: c.granted ? new Date().toISOString() : undefined,
+          revoked_at: !c.granted ? new Date().toISOString() : undefined,
+        })),
+        { onConflict: 'user_id, consent_type' }
+      );
+    if (error) throw error;
+  },
+
+  revokeConsent: async (userId: string, consentType: string) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('user_consents')
+      .update({ granted: false, revoked_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .eq('consent_type', consentType);
+    if (error) throw error;
+  },
+
+  // Public Profile
+  getPublicProfile: async (username: string) => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('public_profiles')
+      .select('*')
+      .eq('username', username)
+      .eq('is_public', true)
+      .single();
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+    return data;
+  },
+
+  updatePublicProfile: async (userId: string, updates: { is_public?: boolean; bio?: string; username?: string }) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('public_profiles')
+      .upsert({
+        id: userId,
+        ...updates,
+      }, { onConflict: 'id' });
+    if (error) throw error;
+  },
+
+  createPublicProfile: async (userId: string, username: string) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('public_profiles')
+      .upsert({
+        id: userId,
+        username,
+        is_public: true,
+        bio: '',
+      }, { onConflict: 'id' });
+    if (error) throw error;
+  },
+
+  // Avatar Upload
+  uploadAvatar: async (userId: string, file: File): Promise<string | null> => {
+    if (!supabase) return null;
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${userId}/avatar.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, { upsert: true });
+    
+    if (uploadError) throw uploadError;
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+    
+    // Update profile
+    await supabase
+      .from('profiles')
+      .update({ avatar_url: publicUrl })
+      .eq('id', userId);
+    
+    return publicUrl;
+  },
 };
