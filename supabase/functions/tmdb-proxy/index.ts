@@ -22,7 +22,6 @@ serve(async (req) => {
     // Verify JWT
     const authHeader = req.headers.get("Authorization")
     console.log("Auth header present:", !!authHeader)
-    console.log("Auth header value:", authHeader)
     if (!authHeader) {
       console.error("Missing Authorization header")
       return new Response(

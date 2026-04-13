@@ -397,18 +397,23 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isAuthLoading ? <Sparkles className="w-5 h-5 animate-spin" /> : isSignUp ? 'Cadastrar' : 'Entrar'}
-              </button>
-            </form>
-
-            <div className="text-center mb-6">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-gray-400 hover:text-white transition-colors"
-              >
-                {isSignUp ? 'Já tem uma conta? Entre aqui' : 'Não tem conta? Cadastre-se'}
-              </button>
-            </div>
+                      </button>
+                    </form>
+        
+                    <div className="text-center mb-6">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSignUp(!isSignUp);
+                          setAuthEmail('');
+                          setAuthPassword('');
+                          setAuthUsername('');
+                        }}
+                        className="text-sm text-gray-400 hover:text-white transition-colors"
+                      >
+                        {isSignUp ? 'Já tem uma conta? Entre aqui' : 'Não tem conta? Cadastre-se'}
+                      </button>
+                    </div>
 
             <div className="relative flex items-center py-4">
               <div className="flex-grow border-t border-white/10" />
