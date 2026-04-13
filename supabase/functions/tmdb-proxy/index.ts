@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,25 +13,6 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders })
   }
 
-  // JWT Authentication check (optional - allows unauthenticated requests for public data like quiz)
-  const authHeader = req.headers.get('Authorization')
-  let isAuthenticated = false
-
-  if (authHeader) {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-    if (supabaseUrl && supabaseAnonKey) {
-      const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
-      const token = authHeader.replace('Bearer ', '')
-      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
-      if (!authError && user) {
-        isAuthenticated = true
-      }
-    }
-  }
-  // Allow unauthenticated requests for public movie data (quiz, landing page)
-  // Authenticated users get full access; unauthenticated requests are still served
-
   try {
     const apiKey = Deno.env.get("TMDB_API_KEY")
     if (!apiKey) {
@@ -43,7 +23,7 @@ serve(async (req) => {
 
     if (!endpoint) {
       return new Response(
-        JSON.stringify({ error: "Missing required field: endpoint (e.g., /movie/popular, /search/movie)" }),
+        JSON.stringify({ error: "Missing required field: endpoint (e.g., movie/popular, search/movie)" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       )
     }
