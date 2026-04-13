@@ -115,7 +115,10 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
               <Sparkles className="w-5 h-5" />
             </button>
             <button
-              onClick={onLogin}
+              onClick={() => {
+                setIsSignUp(false);
+                onLogin();
+              }}
               className="group relative inline-flex items-center justify-center gap-3 bg-white/10 text-white px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:bg-white/20 hover:scale-105"
             >
               Já tenho conta
