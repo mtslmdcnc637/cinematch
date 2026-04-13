@@ -49,7 +49,8 @@ export default function Router() {
         <SubscriptionProvider userId={userId}>
           <ErrorBoundary>
             <Routes>
-              <Route path="/" element={<App />} />
+              <Route path="/" element={<QuizApp />} />
+              <Route path="/login" element={<App />} />
               <Route path="/quiz" element={<QuizApp />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/terms" element={<TermsPage />} />
