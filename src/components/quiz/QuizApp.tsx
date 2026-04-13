@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { QUIZ_PHASES, QUIZ_QUESTIONS, LOADING_TEXTS, RESULT_BENEFITS, PRICING_PLANS } from '../../config/quizData';
 import { supabase } from '../../lib/supabase';
 import { supabaseService } from '../../services/supabaseService';
+import { invokeEdgeFunction } from '../../lib/edgeFunction';
 import { GENRES } from '../../constants';
 import { ProBadge } from '../common/ProBadge';
 import { toast } from 'sonner';
@@ -157,52 +158,21 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
 }
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
-// For non-logged-in quiz users, there's no session so we skip the call.
-// Checks token expiry proactively and sends explicit Authorization header.
+// Uses invokeEdgeFunction instead of supabase.functions.invoke() to avoid
+// the SDK's internal session race condition that causes 401 errors.
+// For non-logged-in quiz users, there's no session so we return empty.
 async function fetchProfileMovies(params: Record<string, string>): Promise<any[]> {
   try {
     if (!supabase) return [];
-    let { data: { session } } = await supabase.auth.getSession();
 
-    // No session = no auth token = tmdb-proxy will reject with 401
-    // Return empty array — quiz result will show profile without movie images
-    if (!session) return [];
+    // Check if there's a session first
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return []; // No session = no auth token = skip
 
-    // Check if access_token is expired and refresh proactively
-    try {
-      const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-      const isExpired = payload.exp * 1000 < Date.now();
-      if (isExpired) {
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        if (refreshData.session) session = refreshData.session;
-        else return [];
-      }
-    } catch {
-      // Token parsing failed, try refreshing
-      const { data: refreshData } = await supabase.auth.refreshSession();
-      if (refreshData.session) session = refreshData.session;
-      else return [];
-    }
-
-    const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
-      body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
-      headers: { Authorization: `Bearer ${session.access_token}` },
+    const data = await invokeEdgeFunction<{ results?: any[] }>('tmdb-proxy', {
+      endpoint: 'discover/movie',
+      params: { language: 'pt-BR', ...params },
     });
-
-    if (error) {
-      // If 401, try refreshing the session once
-      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-        const { data: refreshData } = await supabase.auth.refreshSession();
-        if (refreshData.session) {
-          const retry = await supabase.functions.invoke('tmdb-proxy', {
-            body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
-            headers: { Authorization: `Bearer ${refreshData.session.access_token}` },
-          });
-          if (!retry.error) return retry.data?.results || [];
-        }
-      }
-      return [];
-    }
     return data?.results || [];
   } catch {
     return [];
@@ -302,15 +272,12 @@ export default function QuizApp() {
         session = newSession;
       }
 
-      const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-        body: {
-          plan_id: planId,
-          user_id: session.user.id,
-          user_email: session.user.email || answers.email,
-        },
+      const data = await invokeEdgeFunction<{ url?: string }>('stripe-checkout', {
+        plan_id: planId,
+        user_id: session.user.id,
+        user_email: session.user.email || answers.email,
       });
 
-      if (error) throw new Error(error.message || 'Erro no checkout');
       if (data?.url) {
         window.location.href = data.url;
       } else {

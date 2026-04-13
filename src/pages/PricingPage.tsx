@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Star, ShieldCheck, Lock, ArrowLeft, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast } from 'sonner';
 import { PRICING_PLANS } from '../config/quizData';
 
@@ -23,18 +24,12 @@ export default function PricingPage() {
         return;
       }
 
-      // Call Stripe Checkout Edge Function
-      const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-        body: {
-          plan_id: planId,
-          user_id: session.user.id,
-          user_email: session.user.email,
-        },
+      // Call Stripe Checkout Edge Function via direct fetch for reliable auth
+      const data = await invokeEdgeFunction<{ url?: string }>('stripe-checkout', {
+        plan_id: planId,
+        user_id: session.user.id,
+        user_email: session.user.email,
       });
-
-      if (error) {
-        throw new Error(error.message || 'Erro ao criar sessão de checkout');
-      }
 
       if (data?.url) {
         // Redirect to Stripe Checkout
@@ -62,11 +57,10 @@ export default function PricingPage() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('stripe-portal', {
-        body: { user_id: session.user.id },
+      const data = await invokeEdgeFunction<{ url?: string }>('stripe-portal', {
+        user_id: session.user.id,
       });
 
-      if (error) throw new Error(error.message || 'Erro ao abrir portal');
       if (data?.url) {
         window.location.href = data.url;
       }

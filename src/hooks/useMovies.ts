@@ -5,7 +5,6 @@
 
 import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../lib/supabase';
 import { supabaseService } from '../services/supabaseService';
 import { GENRES } from '../constants';
 import { Movie, UserRating, WatchlistItem } from '../types';
@@ -26,68 +25,12 @@ interface TmdbProvidersResponse {
 }
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
-// This function ensures a valid session exists before calling the edge function.
-// It checks token expiry and refreshes proactively, and also sends the
-// Authorization header explicitly (belt-and-suspenders with SDK auto-header).
+// Uses invokeEdgeFunction instead of supabase.functions.invoke() to avoid
+// the SDK's internal session race condition that causes 401 errors.
+import { invokeEdgeFunction } from '../lib/edgeFunction';
+
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
-  if (!supabase) throw new Error('Supabase not initialized');
-
-  // Get current session and ensure token is valid
-  let { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    throw new Error('No active session — user must be logged in');
-  }
-
-  // Check if access_token is expired and refresh proactively
-  try {
-    const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-    const isExpired = payload.exp * 1000 < Date.now();
-    if (isExpired) {
-      const { data: refreshData } = await supabase.auth.refreshSession();
-      if (refreshData.session) {
-        session = refreshData.session;
-      } else {
-        await supabase.auth.signOut();
-        throw new Error('Session expired and could not be refreshed');
-      }
-    }
-  } catch (e) {
-    // If token parsing fails, try refreshing
-    if (e instanceof Error && e.message.includes('Session expired')) throw e;
-    const { data: refreshData } = await supabase.auth.refreshSession();
-    if (refreshData.session) {
-      session = refreshData.session;
-    }
-  }
-
-  // Call the edge function with explicit Authorization header
-  const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
-    body: { endpoint, params },
-    headers: { Authorization: `Bearer ${session.access_token}` },
-  });
-
-  if (error) {
-    // If 401, the access_token may still be invalid — try refreshing once more
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      const { data: refreshData } = await supabase.auth.refreshSession();
-      if (refreshData.session) {
-        // Retry with the freshly refreshed session
-        const retry = await supabase.functions.invoke('tmdb-proxy', {
-          body: { endpoint, params },
-          headers: { Authorization: `Bearer ${refreshData.session.access_token}` },
-        });
-        if (retry.error) {
-          await supabase.auth.signOut();
-          throw retry.error;
-        }
-        return retry.data as T;
-      }
-      // Refresh failed — sign out
-      await supabase.auth.signOut();
-    }
-    throw error;
-  }
-  return data as T;
+  return invokeEdgeFunction<T>('tmdb-proxy', { endpoint, params });
 }
 
 interface UseMoviesParams {

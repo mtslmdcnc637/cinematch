@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { Movie, Rating } from '../types';
 
 export const supabaseService = {
@@ -328,11 +329,7 @@ export const supabaseService = {
   // Oracle AI (via Edge Function)
   askOracle: async (prompt: string) => {
     if (!supabase) throw new Error("Supabase client not initialized");
-    const { data, error } = await supabase.functions.invoke('oracle', {
-      body: { prompt }
-    });
-
-    if (error) throw new Error("Não foi possível consultar o Oráculo no momento.");
+    const data = await invokeEdgeFunction<{ result: string }>('oracle', { prompt });
     return data.result;
   },
 
@@ -391,14 +388,11 @@ export const supabaseService = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-      body: {
-        plan_id: planId,
-        user_id: session.user.id,
-        user_email: session.user.email,
-      },
+    const data = await invokeEdgeFunction('stripe-checkout', {
+      plan_id: planId,
+      user_id: session.user.id,
+      user_email: session.user.email,
     });
-    if (error) throw new Error(error.message || 'Erro ao criar sessão de checkout');
     return data;
   },
 
@@ -407,10 +401,9 @@ export const supabaseService = {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
 
-    const { data, error } = await supabase.functions.invoke('stripe-portal', {
-      body: { user_id: session.user.id },
+    const data = await invokeEdgeFunction('stripe-portal', {
+      user_id: session.user.id,
     });
-    if (error) throw new Error(error.message || 'Erro ao abrir portal');
     return data;
   },
 
