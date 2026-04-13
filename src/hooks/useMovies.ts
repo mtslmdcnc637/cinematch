@@ -27,17 +27,37 @@ interface TmdbProvidersResponse {
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
 // supabase.functions.invoke() automatically sends the Authorization header with the session token.
-// If we get a 401, it means the session expired — we sign the user out.
+// We also verify a session exists before calling to avoid unnecessary 401 errors.
+// If we get a 401, we try refreshing the session once before giving up.
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
   if (!supabase) throw new Error('Supabase not initialized');
+
+  // Verify we have an active session before calling the edge function
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('No active session — user must be logged in');
+  }
 
   const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
     body: { endpoint, params },
   });
 
   if (error) {
-    // If 401, session is expired — sign out to force re-login
+    // If 401, the access_token may have expired — try refreshing once
     if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      const { data: refreshData } = await supabase.auth.refreshSession();
+      if (refreshData.session) {
+        // Retry with the refreshed session
+        const retry = await supabase.functions.invoke('tmdb-proxy', {
+          body: { endpoint, params },
+        });
+        if (retry.error) {
+          await supabase.auth.signOut();
+          throw retry.error;
+        }
+        return retry.data as T;
+      }
+      // Refresh failed — sign out
       await supabase.auth.signOut();
     }
     throw error;
@@ -175,17 +195,18 @@ export function useMovies({
 
   // ── Providers (kept as callback with local state cache) ────────────────
   const getProviders = useCallback(async (movieId: number) => {
-    if (providers[movieId]) return;
+    if (!user || providers[movieId]) return;
     try {
       const data = await tmdbFetch<TmdbProvidersResponse>(`movie/${movieId}/watch/providers`);
       setProviders(prev => ({ ...prev, [movieId]: data.results?.BR ?? {} }));
     } catch {
       // Silently handle provider fetch errors
     }
-  }, [providers]);
+  }, [user, providers]);
 
   // ── Infinite scroll (kept as useEffect – complex side effects) ─────────
   useEffect(() => {
+    if (!user) return;
     if (unratedMovies.length < 5 && !isLoadingMore && !isFeedLoading && movies.length > 0) {
       setIsLoadingMore(true);
       const nextPage = feedPage + 1;
@@ -215,7 +236,7 @@ export function useMovies({
           setIsLoadingMore(false);
         });
     }
-  }, [unratedMovies.length, feedPage, activeGenre, isLoadingMore, isFeedLoading, movies.length]);
+  }, [user, unratedMovies.length, feedPage, activeGenre, isLoadingMore, isFeedLoading, movies.length]);
 
   // ── Generate daily tip (kept as manual function – complex side effects) ─
   const generateDailyTip = useCallback(

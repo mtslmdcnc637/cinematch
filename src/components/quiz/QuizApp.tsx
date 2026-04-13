@@ -159,6 +159,7 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
 // supabase.functions.invoke() automatically sends Authorization header.
 // For non-logged-in quiz users, there's no session so we skip the call.
+// If we get a 401, try refreshing the session once before giving up.
 async function fetchProfileMovies(params: Record<string, string>): Promise<any[]> {
   try {
     if (!supabase) return [];
@@ -171,7 +172,20 @@ async function fetchProfileMovies(params: Record<string, string>): Promise<any[]
     const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
       body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
     });
-    if (error) return [];
+
+    if (error) {
+      // If 401, try refreshing the session once
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        const { data: refreshData } = await supabase.auth.refreshSession();
+        if (refreshData.session) {
+          const retry = await supabase.functions.invoke('tmdb-proxy', {
+            body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
+          });
+          if (!retry.error) return retry.data?.results || [];
+        }
+      }
+      return [];
+    }
     return data?.results || [];
   } catch {
     return [];

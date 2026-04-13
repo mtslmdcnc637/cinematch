@@ -38,6 +38,12 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     if (!supabase) return;
 
+    // Guard to prevent onAuthStateChange from setting user before
+    // getSession() + refreshSession() completes. Without this, the
+    // INITIAL_SESSION event fires with a potentially expired access_token,
+    // enabling data-fetching hooks that immediately call tmdb-proxy → 401.
+    let isInitializing = true;
+
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error) {
         if (
@@ -47,6 +53,7 @@ export function useAuth(): UseAuthReturn {
           await supabase.auth.signOut().catch(() => {});
           setUser(null);
           setIsInitialLoading(false);
+          isInitializing = false;
           return;
         }
       }
@@ -59,6 +66,7 @@ export function useAuth(): UseAuthReturn {
           await supabase.auth.signOut().catch(() => {});
           setUser(null);
           setIsInitialLoading(false);
+          isInitializing = false;
           return;
         }
         setUser(refreshData.session.user);
@@ -66,16 +74,30 @@ export function useAuth(): UseAuthReturn {
         setUser(null);
       }
       setIsInitialLoading(false);
+      isInitializing = false;
     }).catch(() => {
       setUser(null);
       setIsInitialLoading(false);
+      isInitializing = false;
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      if (!session) setIsInitialLoading(false);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Ignore all events during initialization — they are handled by
+      // the getSession() flow above. The INITIAL_SESSION event fires
+      // before refreshSession() completes and would set the user with
+      // an expired access_token, causing 401 errors on tmdb-proxy calls.
+      if (isInitializing) return;
+
+      // Only react to meaningful auth events after initialization
+      if (event === 'SIGNED_IN') {
+        setUser(session?.user ?? null);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+      } else if (event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null);
+      }
     });
 
     return () => subscription.unsubscribe();

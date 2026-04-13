@@ -12,18 +12,39 @@ import { TMDB_API_BASE } from '../constants';
  * so the API key is never exposed on the client side.
  *
  * supabase.functions.invoke() automatically sends the Authorization header.
- * If we get a 401, the session expired — we sign the user out.
+ * We also verify a session exists before calling to avoid unnecessary 401 errors.
+ * If we get a 401, we try refreshing the session once before giving up.
  */
 
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
   if (!supabase) throw new Error('Supabase not initialized');
+
+  // Verify we have an active session before calling the edge function
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    throw new Error('No active session — user must be logged in');
+  }
 
   const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
     body: { endpoint, params },
   });
 
   if (error) {
+    // If 401, the access_token may have expired — try refreshing once
     if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      const { data: refreshData } = await supabase.auth.refreshSession();
+      if (refreshData.session) {
+        // Retry with the refreshed session
+        const retry = await supabase.functions.invoke('tmdb-proxy', {
+          body: { endpoint, params },
+        });
+        if (retry.error) {
+          await supabase.auth.signOut();
+          throw retry.error;
+        }
+        return retry.data as T;
+      }
+      // Refresh failed — sign out
       await supabase.auth.signOut();
     }
     throw error;

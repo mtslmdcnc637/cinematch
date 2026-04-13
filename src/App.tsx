@@ -108,19 +108,12 @@ export default function App() {
     onNavigateToPricing: handleNavigateToPricing,
   });
 
-  // Redirect non-logged-in users to login immediately — nothing should load
-  useEffect(() => {
-    if (!isInitialLoading && !user) {
-      // Set page to profile (login form) immediately — no data loads for non-authed users
-      if (currentPage !== 'profile') {
-        setCurrentPage('profile');
-        setIsSignUp(false);
-      }
-    }
-  }, [user, currentPage, isInitialLoading]);
+  // Non-logged-in users are handled directly in the render logic below
+  // (no useEffect needed — prevents any data loading before redirect)
 
   // Handle login action from quiz redirect (?action=login)
   useEffect(() => {
+    if (!user) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('action') === 'login') {
       setIsSignUp(false);
@@ -128,10 +121,11 @@ export default function App() {
       // Clean the URL
       window.history.replaceState({}, '', '/');
     }
-  }, []);
+  }, [user]);
 
   // Load user data when user changes
   useEffect(() => {
+    if (!user) return;
     loadUserData(setRatings, setWatchlist);
   }, [user, loadUserData, setRatings, setWatchlist]);
 
@@ -231,6 +225,39 @@ export default function App() {
               <Sparkles className="w-12 h-12 text-purple-500 opacity-50" />
             </motion.div>
           </div>
+        ) : !user ? (
+          /* Non-logged-in users see ONLY the login form — no data loading at all */
+          <ErrorBoundary key="profile-login">
+            <ProfilePage
+              userProfile={userProfile}
+              ratings={ratings}
+              watchlist={watchlist}
+              isPro={isPro}
+              planType={planType}
+              onSignOut={handleSignOut}
+              handleExportForAI={handleExportForAI}
+              oracleResult={oracleResult}
+              isOracleLoading={isOracleLoading}
+              showExportModal={showExportModal}
+              setShowExportModal={setShowExportModal}
+              notificationPrefs={notificationPrefs as unknown as Record<string, boolean>}
+              onUpdatePreference={handleUpdatePreference}
+              user={user}
+              authEmail={authEmail}
+              setAuthEmail={setAuthEmail}
+              authPassword={authPassword}
+              setAuthPassword={setAuthPassword}
+              authUsername={authUsername}
+              setAuthUsername={setAuthUsername}
+              isSignUp={isSignUp}
+              setIsSignUp={setIsSignUp}
+              isAuthLoading={isAuthLoading}
+              handleEmailAuth={handleEmailAuth}
+              handleGoogleAuth={handleGoogleAuth}
+              selectedGenres={selectedGenres}
+              onEditGenres={() => setCurrentPage('onboarding')}
+            />
+          </ErrorBoundary>
         ) : (
           <AnimatePresence mode="wait">
             {currentPage === 'onboarding' && (
