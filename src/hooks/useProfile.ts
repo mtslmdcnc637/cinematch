@@ -196,7 +196,8 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
         toast.error('Erro ao salvar gêneros.');
       }
     } else {
-      setCurrentPage('feed');
+      // Non-logged-in user needs to create account first
+      setCurrentPage('profile');
     }
   }, [user, selectedGenres]);
 

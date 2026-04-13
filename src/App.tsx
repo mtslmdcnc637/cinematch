@@ -41,6 +41,7 @@ const navItems = [
 export default function App() {
   const navigate = useNavigate();
   const handleNavigateToPricing = useCallback(() => navigate('/pricing'), [navigate]);
+
   const { isPro, planType, incrementSwipes, incrementDicas } = useSubscription();
   const { trackEvent, trackPageView } = useAnalytics();
 
@@ -106,6 +107,24 @@ export default function App() {
     incrementDicas,
     onNavigateToPricing: handleNavigateToPricing,
   });
+
+  // Redirect non-logged-in users to quiz from onboarding
+  useEffect(() => {
+    if (!isInitialLoading && !user && currentPage === 'onboarding') {
+      navigate('/quiz', { replace: true });
+    }
+  }, [user, currentPage, isInitialLoading, navigate]);
+
+  // Handle login action from quiz redirect (?action=login)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('action') === 'login') {
+      setIsSignUp(false);
+      setCurrentPage('profile');
+      // Clean the URL
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
 
   // Load user data when user changes
   useEffect(() => {
@@ -366,22 +385,22 @@ export default function App() {
       </main>
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10">
-        <div className="flex justify-around items-center py-2 px-2">
-          {navItems.slice(0, 5).map((item) => {
+        <div className="flex justify-around items-center py-2 px-1">
+          {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentPage === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setCurrentPage(item.id)}
-                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all ${
+                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all ${
                   isActive
                     ? 'text-purple-400 bg-purple-500/10'
                     : 'text-gray-500 hover:text-gray-300'
                 }`}
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[9px] font-medium">{item.label}</span>
               </button>
             );
           })}

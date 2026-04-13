@@ -156,11 +156,16 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
   return PROFILES[bestProfile];
 }
 
-// TMDB fetch via proxy
+// TMDB fetch via proxy (with optional auth for logged-in users)
 async function fetchProfileMovies(params: Record<string, string>): Promise<any[]> {
   try {
+    if (!supabase) return [];
+    const { data: { session } } = await supabase.auth.getSession();
     const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
       body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
+      headers: {
+        Authorization: `Bearer ${session?.access_token || ''}`,
+      },
     });
     if (error) return [];
     return data?.results || [];
@@ -232,40 +237,49 @@ export default function QuizApp() {
   const handleSubscribe = async (planId: string) => {
     setIsSubscribing(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      let { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        // Save quiz data, redirect to sign up
+        // Try to create account or sign in with quiz email
         if (answers.email) {
           try {
             // Generate a strong random temp password
             const tempPassword = 'cm_' + crypto.randomUUID().replace(/-/g, '') + '!A1';
             await supabaseService.signUpWithEmail(answers.email, tempPassword, answers.name || 'Usuário');
+            // Wait a moment for the session to be established
+            await new Promise(resolve => setTimeout(resolve, 1500));
           } catch {
-            // User might already exist, continue to checkout
+            // User might already exist - try to sign in with a message
+            toast.error('Este e-mail já está cadastrado. Faça login primeiro.');
+            navigate('/');
+            setIsSubscribing(false);
+            return;
           }
         }
+        // Re-check session after signup
         const { data: { session: newSession } } = await supabase.auth.getSession();
         if (!newSession) {
-          toast.error('Crie uma conta primeiro para assinar.');
+          toast.error('Erro ao criar conta. Tente fazer login e depois assinar.');
           navigate('/');
           setIsSubscribing(false);
           return;
         }
+        session = newSession;
       }
 
-      const currentSession = (await supabase.auth.getSession()).data.session;
       const { data, error } = await supabase.functions.invoke('stripe-checkout', {
         body: {
           plan_id: planId,
-          user_id: currentSession?.user?.id,
-          user_email: currentSession?.user?.email || answers.email,
+          user_id: session.user.id,
+          user_email: session.user.email || answers.email,
         },
       });
 
       if (error) throw new Error(error.message || 'Erro no checkout');
       if (data?.url) {
         window.location.href = data.url;
+      } else {
+        throw new Error('URL de checkout não retornada');
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao processar assinatura';
@@ -336,6 +350,13 @@ export default function QuizApp() {
                 className="w-full max-w-sm bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all transform hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2"
               >
                 Começar Agora <ArrowRight className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={() => navigate('/?action=login')}
+                className="mt-4 text-gray-400 hover:text-white transition-colors text-sm font-medium underline underline-offset-4"
+              >
+                Já tenho conta — Fazer login
               </button>
 
               {/* Testimonials */}
