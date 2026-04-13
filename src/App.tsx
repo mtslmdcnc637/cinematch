@@ -227,7 +227,7 @@ export default function App() {
           </div>
         ) : !user ? (
           /* Non-logged-in users see ONLY the login form — no data loading at all */
-          <ErrorBoundary key="profile-login">
+          <ErrorBoundary>
             <ProfilePage
               userProfile={userProfile}
               ratings={ratings}
@@ -261,7 +261,7 @@ export default function App() {
         ) : (
           <AnimatePresence mode="wait">
             {currentPage === 'onboarding' && (
-              <ErrorBoundary key="onboarding">
+              <ErrorBoundary>
                 <OnboardingPage
                   selectedGenres={selectedGenres}
                   toggleGenre={toggleGenre}
@@ -287,7 +287,7 @@ export default function App() {
             )}
 
             {currentPage === 'feed' && (
-              <ErrorBoundary key="feed">
+              <ErrorBoundary>
                 <FeedPage
                   currentMovie={currentMovie}
                   activeGenre={activeGenre}
@@ -306,7 +306,7 @@ export default function App() {
             )}
 
             {currentPage === 'daily_tip' && (
-              <ErrorBoundary key="daily_tip">
+              <ErrorBoundary>
                 <DailyTipPage
                   dailyTip={dailyTip}
                   dailyTipReason={dailyTipReason}
@@ -325,7 +325,7 @@ export default function App() {
             )}
 
             {currentPage === 'search' && (
-              <ErrorBoundary key="search">
+              <ErrorBoundary>
                 <SearchPage
                   searchQuery={searchQuery}
                   setSearchQuery={setSearchQuery}
@@ -342,7 +342,7 @@ export default function App() {
             )}
 
             {currentPage === 'library' && (
-              <ErrorBoundary key="library">
+              <ErrorBoundary>
                 <LibraryPage
                   ratings={ratings}
                   watchlist={watchlist}
@@ -356,7 +356,7 @@ export default function App() {
             )}
 
             {currentPage === 'profile' && (
-              <ErrorBoundary key="profile">
+              <ErrorBoundary>
                 <ProfilePage
                   userProfile={userProfile}
                   ratings={ratings}
@@ -390,7 +390,7 @@ export default function App() {
             )}
 
             {currentPage === 'friends' && (
-              <ErrorBoundary key="friends">
+              <ErrorBoundary>
                 <FriendsPage
                   userId={user?.id}
                   friends={friends}
