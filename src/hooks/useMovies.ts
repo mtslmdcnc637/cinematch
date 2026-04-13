@@ -26,24 +26,22 @@ interface TmdbProvidersResponse {
 }
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
-// Requires the user's Bearer token for JWT verification on the edge function
+// supabase.functions.invoke() automatically sends the Authorization header with the session token.
+// If we get a 401, it means the session expired — we sign the user out.
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
   if (!supabase) throw new Error('Supabase not initialized');
 
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    throw new Error('User not authenticated');
-  }
-
   const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
     body: { endpoint, params },
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
   });
 
-  if (error) throw error;
+  if (error) {
+    // If 401, session is expired — sign out to force re-login
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      await supabase.auth.signOut();
+    }
+    throw error;
+  }
   return data as T;
 }
 

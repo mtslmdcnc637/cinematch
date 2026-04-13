@@ -38,18 +38,36 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     if (!supabase) return;
 
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
       if (error) {
         if (
           error.message.includes('Refresh Token Not Found') ||
           error.message.includes('Invalid Refresh Token')
         ) {
-          supabase.auth.signOut().catch(() => {});
+          await supabase.auth.signOut().catch(() => {});
+          setUser(null);
+          setIsInitialLoading(false);
+          return;
         }
       }
-      setUser(session?.user ?? null);
-      if (!session) setIsInitialLoading(false);
+
+      // If we have a session, try to refresh it to make sure it's valid
+      if (session) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          // Session is expired and can't be refreshed — sign out
+          await supabase.auth.signOut().catch(() => {});
+          setUser(null);
+          setIsInitialLoading(false);
+          return;
+        }
+        setUser(refreshData.session.user);
+      } else {
+        setUser(null);
+      }
+      setIsInitialLoading(false);
     }).catch(() => {
+      setUser(null);
       setIsInitialLoading(false);
     });
 

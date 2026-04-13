@@ -11,26 +11,23 @@ import { TMDB_API_BASE } from '../constants';
  * All TMDB API calls go through the Supabase Edge Function proxy (tmdb-proxy)
  * so the API key is never exposed on the client side.
  *
- * Requires the user's Bearer token for JWT verification on the edge function.
+ * supabase.functions.invoke() automatically sends the Authorization header.
+ * If we get a 401, the session expired — we sign the user out.
  */
 
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
   if (!supabase) throw new Error('Supabase not initialized');
 
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (!session?.access_token) {
-    throw new Error('User not authenticated');
-  }
-
   const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
     body: { endpoint, params },
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
   });
 
-  if (error) throw error;
+  if (error) {
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      await supabase.auth.signOut();
+    }
+    throw error;
+  }
   return data as T;
 }
 

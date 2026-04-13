@@ -108,16 +108,16 @@ export default function App() {
     onNavigateToPricing: handleNavigateToPricing,
   });
 
-  // Redirect non-logged-in users to quiz (they should never see internal pages like feed, search, etc.)
+  // Redirect non-logged-in users to login immediately — nothing should load
   useEffect(() => {
     if (!isInitialLoading && !user) {
-      // Allow 'profile' page so users can login from quiz redirect
-      // Everything else goes to quiz
+      // Set page to profile (login form) immediately — no data loads for non-authed users
       if (currentPage !== 'profile') {
-        navigate('/quiz', { replace: true });
+        setCurrentPage('profile');
+        setIsSignUp(false);
       }
     }
-  }, [user, currentPage, isInitialLoading, navigate]);
+  }, [user, currentPage, isInitialLoading]);
 
   // Handle login action from quiz redirect (?action=login)
   useEffect(() => {

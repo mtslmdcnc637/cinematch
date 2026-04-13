@@ -157,21 +157,19 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
 }
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
-// Requires Bearer token — quiz users without a session won't see movie images
+// supabase.functions.invoke() automatically sends Authorization header.
+// For non-logged-in quiz users, there's no session so we skip the call.
 async function fetchProfileMovies(params: Record<string, string>): Promise<any[]> {
   try {
     if (!supabase) return [];
     const { data: { session } } = await supabase.auth.getSession();
 
-    // If no session, we can't call tmdb-proxy (it requires JWT verification)
-    // The quiz result will still show the profile, just without movie images
-    if (!session?.access_token) return [];
+    // No session = no auth token = tmdb-proxy will reject with 401
+    // Return empty array — quiz result will show profile without movie images
+    if (!session) return [];
 
     const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
       body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
     });
     if (error) return [];
     return data?.results || [];
