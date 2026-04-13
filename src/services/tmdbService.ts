@@ -11,15 +11,23 @@ import { TMDB_API_BASE } from '../constants';
  * All TMDB API calls go through the Supabase Edge Function proxy (tmdb-proxy)
  * so the API key is never exposed on the client side.
  *
- * The tmdb-proxy function must be deployed with verify_jwt = false
- * so it works for both authenticated and non-authenticated users.
+ * Requires the user's Bearer token for JWT verification on the edge function.
  */
 
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
   if (!supabase) throw new Error('Supabase not initialized');
 
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error('User not authenticated');
+  }
+
   const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
     body: { endpoint, params },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
   });
 
   if (error) throw error;

@@ -157,12 +157,21 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
 }
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
-// No auth header needed — the function should be deployed with verify_jwt = false
+// Requires Bearer token — quiz users without a session won't see movie images
 async function fetchProfileMovies(params: Record<string, string>): Promise<any[]> {
   try {
     if (!supabase) return [];
+    const { data: { session } } = await supabase.auth.getSession();
+
+    // If no session, we can't call tmdb-proxy (it requires JWT verification)
+    // The quiz result will still show the profile, just without movie images
+    if (!session?.access_token) return [];
+
     const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
       body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
     });
     if (error) return [];
     return data?.results || [];

@@ -26,12 +26,21 @@ interface TmdbProvidersResponse {
 }
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
-// No auth header needed — the function should be deployed with verify_jwt = false
+// Requires the user's Bearer token for JWT verification on the edge function
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
   if (!supabase) throw new Error('Supabase not initialized');
 
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error('User not authenticated');
+  }
+
   const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
     body: { endpoint, params },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
   });
 
   if (error) throw error;
