@@ -19,6 +19,17 @@ serve(async (req) => {
       throw new Error("TMDB_API_KEY is not configured")
     }
 
+    // Verify JWT
+    const authHeader = req.headers.get("Authorization")
+    console.log("Auth header present:", !!authHeader)
+    if (!authHeader) {
+      console.error("Missing Authorization header")
+      return new Response(
+        JSON.stringify({ error: "Missing Authorization header" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      )
+    }
+
     const { endpoint, params } = await req.json()
 
     if (!endpoint) {
@@ -81,8 +92,9 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error("tmdb-proxy error:", error)
+    const message = error instanceof Error ? error.message : "Internal server error"
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ error: message }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     )
   }
