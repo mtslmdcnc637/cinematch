@@ -156,18 +156,25 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
   return PROFILES[bestProfile];
 }
 
-// TMDB fetch via proxy (with optional auth for logged-in users)
+// TMDB direct API call (avoids tmdb-proxy 401 errors)
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+const TMDB_API_BASE = 'https://api.themoviedb.org/3';
+
 async function fetchProfileMovies(params: Record<string, string>): Promise<any[]> {
   try {
-    if (!supabase) return [];
-    const { data: { session } } = await supabase.auth.getSession();
-    const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
-      body: { endpoint: 'discover/movie', params: { language: 'pt-BR', ...params } },
-      headers: {
-        Authorization: `Bearer ${session?.access_token || ''}`,
-      },
-    });
-    if (error) return [];
+    if (!TMDB_API_KEY) return [];
+    const queryParams: Record<string, string> = {
+      api_key: TMDB_API_KEY,
+      language: 'pt-BR',
+      ...params,
+    };
+    const queryString = Object.entries(queryParams)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join('&');
+    const url = `${TMDB_API_BASE}/discover/movie?${queryString}`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
     return data?.results || [];
   } catch {
     return [];

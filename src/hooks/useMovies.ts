@@ -25,21 +25,40 @@ interface TmdbProvidersResponse {
   };
 }
 
+// TMDB API Key for direct calls (avoids the tmdb-proxy 401 issue)
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+const TMDB_API_BASE = 'https://api.themoviedb.org/3';
+
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
-  if (!supabase) throw new Error('Supabase not initialized');
+  if (!TMDB_API_KEY) {
+    throw new Error('VITE_TMDB_API_KEY is not configured');
+  }
 
-  // Get the user session to include the Authorization header
-  const { data: { session } } = await supabase.auth.getSession();
+  const queryParams: Record<string, string> = {
+    api_key: TMDB_API_KEY,
+    ...params,
+  };
 
-  const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
-    body: { endpoint, params },
+  const queryString = Object.entries(queryParams)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join('&');
+
+  const sanitizedEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  const url = `${TMDB_API_BASE}/${sanitizedEndpoint}?${queryString}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
     headers: {
-      Authorization: `Bearer ${session?.access_token || ''}`,
+      'Content-Type': 'application/json',
     },
   });
 
-  if (error) throw error;
-  return data as T;
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.status_message || `TMDB API request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
 interface UseMoviesParams {
@@ -130,6 +149,7 @@ export function useMovies({
       const data = await tmdbFetch<{ results: Movie[] }>(endpoint, params);
       return data.results ?? [];
     },
+    enabled: !!user,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -163,7 +183,7 @@ export function useMovies({
       });
       return data.results ?? [];
     },
-    enabled: currentPage === 'search' && debouncedSearchQuery.trim().length > 2,
+    enabled: !!user && currentPage === 'search' && debouncedSearchQuery.trim().length > 2,
     staleTime: 2 * 60 * 1000,
   });
 

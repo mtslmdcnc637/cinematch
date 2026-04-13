@@ -108,10 +108,14 @@ export default function App() {
     onNavigateToPricing: handleNavigateToPricing,
   });
 
-  // Redirect non-logged-in users to quiz from onboarding
+  // Redirect non-logged-in users to quiz (they should never see internal pages like feed, search, etc.)
   useEffect(() => {
-    if (!isInitialLoading && !user && currentPage === 'onboarding') {
-      navigate('/quiz', { replace: true });
+    if (!isInitialLoading && !user) {
+      // Allow 'profile' page so users can login from quiz redirect
+      // Everything else goes to quiz
+      if (currentPage !== 'profile') {
+        navigate('/quiz', { replace: true });
+      }
     }
   }, [user, currentPage, isInitialLoading, navigate]);
 
@@ -172,19 +176,21 @@ export default function App() {
       {/* Atmospheric Background */}
       <div className="glow-orb glow-orb-1" />
       <div className="glow-orb glow-orb-2" />
-      <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
+      <div className="fixed inset-0 bg-[url('/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay" />
 
-      {/* Header */}
-      <Header
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        navItems={navItems}
-        notifications={notifications}
-        setShowNotificationsModal={setShowNotificationsModal}
-        setShowHelpModal={setShowHelpModal}
-        isPro={isPro}
-        userProfile={userProfile}
-      />
+      {/* Header - only show when user is logged in */}
+      {user && (
+        <Header
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          navItems={navItems}
+          notifications={notifications}
+          setShowNotificationsModal={setShowNotificationsModal}
+          setShowHelpModal={setShowHelpModal}
+          isPro={isPro}
+          userProfile={userProfile}
+        />
+      )}
 
       {/* Modals */}
       <ErrorBoundary>
@@ -383,29 +389,31 @@ export default function App() {
           </AnimatePresence>
         )}
       </main>
-      {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10">
-        <div className="flex justify-around items-center py-2 px-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPage === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setCurrentPage(item.id)}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all ${
-                  isActive
-                    ? 'text-purple-400 bg-purple-500/10'
-                    : 'text-gray-500 hover:text-gray-300'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="text-[9px] font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Mobile Bottom Navigation - only show when user is logged in */}
+      {user && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10">
+          <div className="flex justify-around items-center py-2 px-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentPage === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setCurrentPage(item.id)}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all ${
+                    isActive
+                      ? 'text-purple-400 bg-purple-500/10'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="text-[9px] font-medium">{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

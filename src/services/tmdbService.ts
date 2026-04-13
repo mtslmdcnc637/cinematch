@@ -4,29 +4,45 @@
  */
 
 /// <reference types="vite/client" />
-import { supabase } from '../lib/supabase';
 import { TMDB_API_BASE } from '../constants';
 
 /**
- * All TMDB API calls go through the Supabase Edge Function proxy (tmdb-proxy)
- * so the API key is never exposed on the client side.
+ * TMDB API calls are made directly using the VITE_TMDB_API_KEY env variable.
+ * This avoids the 401 errors from the tmdb-proxy Supabase edge function
+ * and works for both authenticated and non-authenticated users.
  */
 
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
-  if (!supabase) throw new Error('Supabase not initialized');
+  if (!TMDB_API_KEY) {
+    throw new Error('VITE_TMDB_API_KEY is not configured');
+  }
 
-  // Pega a sessão do usuário logado
-  const { data: { session } } = await supabase.auth.getSession();
+  const queryParams: Record<string, string> = {
+    api_key: TMDB_API_KEY,
+    ...params,
+  };
 
-  const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
-    body: { endpoint, params },
+  const queryString = Object.entries(queryParams)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join('&');
+
+  const url = `${TMDB_API_BASE}/${endpoint.startsWith('/') ? endpoint.slice(1) : endpoint}?${queryString}`;
+
+  const response = await fetch(url, {
+    method: 'GET',
     headers: {
-      Authorization: `Bearer ${session?.access_token}`,
+      'Content-Type': 'application/json',
     },
   });
 
-  if (error) throw error;
-  return data as T;
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.status_message || `TMDB API request failed with status ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
 }
 
 export const fetchPopularMovies = async (page = 1) => {
