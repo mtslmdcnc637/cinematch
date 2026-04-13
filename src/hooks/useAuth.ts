@@ -84,19 +84,12 @@ export function useAuth(): UseAuthReturn {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Ignore all events during initialization — they are handled by
-      // the getSession() flow above. The INITIAL_SESSION event fires
-      // before refreshSession() completes and would set the user with
-      // an expired access_token, causing 401 errors on tmdb-proxy calls.
-      if (isInitializing) return;
-
-      // Only react to meaningful auth events after initialization
-      if (event === 'SIGNED_IN') {
+      // Always update user state if session changes, even during initialization,
+      // to ensure the UI is in sync with the actual auth state.
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
         setUser(session?.user ?? null);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
-      } else if (event === 'TOKEN_REFRESHED') {
-        setUser(session?.user ?? null);
       }
     });
 
