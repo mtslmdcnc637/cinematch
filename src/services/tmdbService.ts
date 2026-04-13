@@ -15,8 +15,14 @@ import { TMDB_API_BASE } from '../constants';
 async function tmdbFetch<T = unknown>(endpoint: string, params?: Record<string, string>): Promise<T> {
   if (!supabase) throw new Error('Supabase not initialized');
 
+  // Pega a sessão do usuário logado
+  const { data: { session } } = await supabase.auth.getSession();
+
   const { data, error } = await supabase.functions.invoke('tmdb-proxy', {
     body: { endpoint, params },
+    headers: {
+      Authorization: `Bearer ${session?.access_token}`,
+    },
   });
 
   if (error) throw error;
