@@ -44,35 +44,8 @@ export function useAuth(): UseAuthReturn {
     // enabling data-fetching hooks that immediately call tmdb-proxy → 401.
     let isInitializing = true;
 
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (error) {
-        if (
-          error.message.includes('Refresh Token Not Found') ||
-          error.message.includes('Invalid Refresh Token')
-        ) {
-          await supabase.auth.signOut().catch(() => {});
-          setUser(null);
-          setIsInitialLoading(false);
-          isInitializing = false;
-          return;
-        }
-      }
-
-      // If we have a session, try to refresh it to make sure it's valid
-      if (session) {
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          // Session is expired and can't be refreshed — sign out
-          await supabase.auth.signOut().catch(() => {});
-          setUser(null);
-          setIsInitialLoading(false);
-          isInitializing = false;
-          return;
-        }
-        setUser(refreshData.session.user);
-      } else {
-        setUser(null);
-      }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
       setIsInitialLoading(false);
       isInitializing = false;
     }).catch(() => {
