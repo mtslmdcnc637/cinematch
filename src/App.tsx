@@ -115,6 +115,15 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
     const params = new URLSearchParams(window.location.search);
+
+    // If redirected from pricing, send them back there
+    const redirect = params.get('redirect');
+    if (redirect) {
+      window.history.replaceState({}, '', '/');
+      navigate(redirect);
+      return;
+    }
+
     if (params.get('action') === 'login') {
       setIsSignUp(false);
       setCurrentPage('profile');

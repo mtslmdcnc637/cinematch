@@ -18,8 +18,8 @@ export default function PricingPage() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        toast.error('Faça login ou crie uma conta primeiro para assinar.');
-        navigate('/quiz');
+        toast.error('Faça login ou crie uma conta primeiro para assinar.', { duration: 5000 });
+        navigate('/login');
         setIsLoading(null);
         return;
       }
@@ -51,8 +51,8 @@ export default function PricingPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        toast.error('Faça login primeiro.');
-        navigate('/quiz');
+        toast.error('Faça login primeiro.', { duration: 5000 });
+        navigate('/login');
         setIsLoading(null);
         return;
       }

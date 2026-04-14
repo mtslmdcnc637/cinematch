@@ -8,11 +8,31 @@ const corsHeaders = {
 
 const STRIPE_API_BASE = "https://api.stripe.com/v1"
 
+/**
+ * Flatten a nested object into Stripe's bracket-notation form encoding.
+ * e.g. { metadata: { supabase_user_id: "abc" } } → "metadata[supabase_user_id]=abc"
+ */
+function flattenForStripe(
+  obj: Record<string, unknown>,
+  prefix = ""
+): Array<[string, string]> {
+  const pairs: Array<[string, string]> = []
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}[${key}]` : key
+    if (value !== null && value !== undefined && typeof value === "object" && !Array.isArray(value)) {
+      pairs.push(...flattenForStripe(value as Record<string, unknown>, fullKey))
+    } else {
+      pairs.push([fullKey, String(value ?? "")])
+    }
+  }
+  return pairs
+}
+
 // Helper: make an authenticated request to the Stripe REST API
 async function stripeRequest(
   path: string,
   method: "GET" | "POST" = "POST",
-  body?: Record<string, string | number | boolean>
+  body?: Record<string, unknown>
 ) {
   const secretKey = Deno.env.get("STRIPE_SECRET_KEY")
   if (!secretKey) throw new Error("STRIPE_SECRET_KEY is not configured")
@@ -25,8 +45,8 @@ async function stripeRequest(
 
   if (method === "POST" && body) {
     headers["Content-Type"] = "application/x-www-form-urlencoded"
-    const encoded = Object.entries(body)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    const encoded = flattenForStripe(body)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
       .join("&")
     const res = await fetch(url, { method, headers, body: encoded })
     return res.json()
@@ -34,8 +54,8 @@ async function stripeRequest(
 
   // GET
   if (body) {
-    const qs = Object.entries(body)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    const qs = flattenForStripe(body)
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
       .join("&")
     url += `?${qs}`
   }
@@ -130,7 +150,7 @@ serve(async (req) => {
     // ── Build Checkout Session params ────────────────────────────────
     const priceId = getPriceId(plan_id)
 
-    const sessionParams: Record<string, string | number | boolean> = {
+    const sessionParams: Record<string, unknown> = {
       customer: customerId!,
       mode: "subscription",
       "payment_method_types[0]": "card",

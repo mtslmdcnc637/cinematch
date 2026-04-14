@@ -299,18 +299,17 @@ export default function QuizApp() {
       let { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        // Try to create account or sign in with quiz email
+        // Try to create account with quiz email so we can get a session
         if (answers.email) {
           try {
-            // Generate a strong random temp password
             const tempPassword = 'cm_' + crypto.randomUUID().replace(/-/g, '') + '!A1';
             await supabaseService.signUpWithEmail(answers.email, tempPassword, answers.name || 'Usuário');
-            // Wait a moment for the session to be established
+            // Wait for session to be established (works when email confirmation is disabled)
             await new Promise(resolve => setTimeout(resolve, 1500));
           } catch {
-            // User might already exist - try to sign in with a message
-            toast.error('Este e-mail já está cadastrado. Faça login primeiro.');
-            navigate('/');
+            // Email already registered — user needs to log in
+            toast.error('Este e-mail já está cadastrado. Faça login para assinar.', { duration: 5000 });
+            navigate('/login?redirect=/pricing');
             setIsSubscribing(false);
             return;
           }
@@ -318,8 +317,9 @@ export default function QuizApp() {
         // Re-check session after signup
         const { data: { session: newSession } } = await supabase.auth.getSession();
         if (!newSession) {
-          toast.error('Erro ao criar conta. Tente fazer login e depois assinar.');
-          navigate('/');
+          // Account created but email confirmation required — redirect to login
+          toast.error('Conta criada! Verifique seu e-mail e faça login para assinar.', { duration: 6000 });
+          navigate('/login?redirect=/pricing');
           setIsSubscribing(false);
           return;
         }
@@ -339,7 +339,7 @@ export default function QuizApp() {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao processar assinatura';
-      toast.error(message);
+      toast.error(message, { duration: 5000 });
     } finally {
       setIsSubscribing(false);
     }
@@ -416,13 +416,6 @@ export default function QuizApp() {
                 Responda a este quiz rápido para gerar um algoritmo 100% focado no seu gosto pessoal.
               </p>
 
-              <button
-                onClick={handleStart}
-                className="w-full max-w-sm bg-purple-600 hover:bg-purple-500 text-white font-bold py-3.5 sm:py-4 px-8 rounded-2xl text-base sm:text-lg transition-all transform hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2"
-              >
-                Começar Agora <ArrowRight className="w-5 h-5" />
-              </button>
-
               {/* Testimonials */}
               <div className="mt-8 sm:mt-16 w-full max-w-md text-left">
                 <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold mb-3 sm:mb-4 text-center">O que dizem nossos usuários</p>
@@ -466,14 +459,13 @@ export default function QuizApp() {
                 </div>
               </div>
 
-              {/* Login / Cadastro buttons below testimonials */}
-              <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm">
+              {/* CTA + Login below testimonials */}
+              <div className="mt-6 sm:mt-8 flex flex-col items-center justify-center gap-3 w-full max-w-sm">
                 <button
                   onClick={handleStart}
-                  className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-2xl transition-all text-sm flex items-center justify-center gap-2 border border-white/10"
+                  className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3.5 sm:py-4 px-8 rounded-2xl text-base sm:text-lg transition-all transform hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2"
                 >
-                  <SparklesIcon className="w-4 h-4" />
-                  Cadastrar grátis
+                  Começar Agora <ArrowRight className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => navigate('/login')}
