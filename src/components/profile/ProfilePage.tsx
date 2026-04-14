@@ -354,25 +354,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         ) : (
           <div className="max-w-md mx-auto w-full glass-card p-8 rounded-[2rem] border border-white/10 text-left">
             <h2 className="text-3xl font-bold font-display mb-2 text-center">
-              {isSignUp ? 'Criar Conta' : 'Bem-vindo de volta'}
+              Bem-vindo de volta
             </h2>
             <p className="text-gray-400 text-center mb-8">
-              {isSignUp ? 'Cadastre-se para salvar seus filmes' : 'Entre para acessar sua biblioteca'}
+              Entre para acessar sua biblioteca
             </p>
 
             <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
-              {isSignUp && (
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Seu nome de usuário"
-                    value={authUsername}
-                    onChange={(e) => setAuthUsername(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-500/50 focus:bg-white/10 transition-all"
-                    required
-                  />
-                </div>
-              )}
               <div>
                 <input
                   type="email"
@@ -399,34 +387,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 disabled={isAuthLoading}
                 className="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {isAuthLoading ? <Sparkles className="w-5 h-5 animate-spin" /> : isSignUp ? 'Cadastrar' : 'Entrar'}
-                      </button>
-                    </form>
-        
-                    <div className="text-center mb-6">
-                      {isSignUp ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsSignUp(false);
-                            setAuthEmail('');
-                            setAuthPassword('');
-                            setAuthUsername('');
-                          }}
-                          className="text-sm text-gray-400 hover:text-white transition-colors"
-                        >
-                          Já tem uma conta? Entre aqui
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => navigate('/')}
-                          className="text-sm text-gray-400 hover:text-white transition-colors"
-                        >
-                          Não tem conta? Faça o quiz e cadastre-se
-                        </button>
-                      )}
-                    </div>
+                {isAuthLoading ? <Sparkles className="w-5 h-5 animate-spin" /> : 'Entrar'}
+              </button>
+            </form>
+
+            <div className="text-center mb-6">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className="text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                Não tem conta? Cadastre-se
+              </button>
+            </div>
 
             <div className="relative flex items-center py-4">
               <div className="flex-grow border-t border-white/10" />

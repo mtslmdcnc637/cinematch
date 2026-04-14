@@ -158,16 +158,11 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
 }
 
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
-// Uses invokeEdgeFunction instead of supabase.functions.invoke() to avoid
-// the SDK's internal session race condition that causes 401 errors.
-// For non-logged-in quiz users, there's no session so we return empty.
+// tmdb-proxy has verify_jwt = false, so it works with just the apikey header.
+// No user session is required.
 async function fetchProfileMovies(params: Record<string, string>): Promise<any[]> {
   try {
     if (!supabase) return [];
-
-    // Check if there's a session first
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return []; // No session = no auth token = skip
 
     const data = await invokeEdgeFunction<{ results?: any[] }>('tmdb-proxy', {
       endpoint: 'discover/movie',

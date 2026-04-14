@@ -9,12 +9,22 @@
  *   of the auth layer (useAuth), not an HTTP utility.
  * - On 401, retries once after forcing a `refreshSession()`.
  * - All errors are thrown; callers decide how to handle them.
+ *
+ * For tmdb-proxy: verify_jwt is disabled server-side, so we send the
+ * apikey header only (no Authorization) — this avoids the 401 race
+ * condition with the Supabase JWT verifier.
  */
 
 import { supabase } from './supabase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+/**
+ * Edge functions that have verify_jwt = false and don't need a user JWT.
+ * The apikey (anon key) is sufficient for these.
+ */
+const PUBLIC_FUNCTIONS = new Set(['tmdb-proxy']);
 
 /**
  * Ensure we have a valid, non-expired access token.
@@ -63,11 +73,14 @@ async function getFreshToken(): Promise<string> {
 }
 
 /**
- * Call a Supabase Edge Function with a fresh JWT.
+ * Call a Supabase Edge Function.
  *
- * On 401, forces a `refreshSession()` and retries once.
- * Never calls `signOut()` — auth state management is not
- * the responsibility of an HTTP utility.
+ * For functions in PUBLIC_FUNCTIONS (e.g. tmdb-proxy), only the apikey
+ * header is sent — no JWT. This avoids 401 errors when verify_jwt is
+ * disabled server-side.
+ *
+ * For other functions, a fresh JWT is sent and 401s trigger a retry
+ * after refreshSession().
  */
 export async function invokeEdgeFunction<T = unknown>(
   functionName: string,
@@ -78,9 +91,31 @@ export async function invokeEdgeFunction<T = unknown>(
     throw new Error('Supabase URL or Anon Key not configured');
   }
 
-  const accessToken = await getFreshToken();
-
   const url = `${supabaseUrl}/functions/v1/${functionName}`;
+
+  // For public functions (verify_jwt = false), only send apikey
+  if (PUBLIC_FUNCTIONS.has(functionName)) {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'apikey': supabaseAnonKey,
+    };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Edge function error: ${response.status}`);
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  // For protected functions, send JWT
+  const accessToken = await getFreshToken();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

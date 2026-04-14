@@ -309,7 +309,9 @@ export function useMovies({
   useEffect(() => {
     if (currentPage === 'daily_tip') {
       if (!hasGeneratedTipRef.current) {
-        generateDailyTip();
+        generateDailyTip().catch(() => {
+          // Silently handle — DailyTipPage will show the empty state
+        });
         hasGeneratedTipRef.current = true;
       }
     } else {

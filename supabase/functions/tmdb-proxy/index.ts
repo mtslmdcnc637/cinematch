@@ -19,13 +19,15 @@ serve(async (req) => {
       throw new Error("TMDB_API_KEY is not configured")
     }
 
-    // Verify JWT
-    const authHeader = req.headers.get("Authorization")
-    console.log("Auth header present:", !!authHeader)
-    if (!authHeader) {
-      console.error("Missing Authorization header")
+    // Validate the apikey header (Supabase anon key) to ensure the request
+    // comes from our app. Since verify_jwt is false, this is our lightweight
+    // auth check — the anon key is public but still gates casual abuse.
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")
+    const requestApiKey = req.headers.get("apikey")
+    if (anonKey && requestApiKey !== anonKey) {
+      console.error("Invalid apikey header")
       return new Response(
-        JSON.stringify({ error: "Missing Authorization header" }),
+        JSON.stringify({ error: "Invalid apikey" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
       )
     }
