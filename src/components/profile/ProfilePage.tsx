@@ -433,6 +433,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         )}
       </div>
 
+      {user && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="glass-card p-8 rounded-[2rem] text-center relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -510,6 +511,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </button>
         </div>
       </div>
+      )}
     </motion.div>
   );
 };

@@ -38,28 +38,28 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     if (!supabase) return;
 
-    // Guard to prevent onAuthStateChange from setting user before
-    // getSession() + refreshSession() completes. Without this, the
-    // INITIAL_SESSION event fires with a potentially expired access_token,
-    // enabling data-fetching hooks that immediately call tmdb-proxy → 401.
-    let isInitializing = true;
-
+    // Use getSession() as the source of truth for the initial auth state.
+    // The INITIAL_SESSION event from onAuthStateChange is intentionally
+    // ignored because it can fire with an expired access_token before the
+    // internal token-refresh completes. When the refresh then fails,
+    // SIGNED_OUT fires and the user is abruptly logged out — causing the
+    // "token disappears after seconds" bug.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setIsInitialLoading(false);
-      isInitializing = false;
     }).catch(() => {
       setUser(null);
       setIsInitialLoading(false);
-      isInitializing = false;
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Always update user state if session changes, even during initialization,
-      // to ensure the UI is in sync with the actual auth state.
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      // Ignore INITIAL_SESSION — getSession() already handles the initial
+      // state and avoids the race condition described above.
+      if (event === 'INITIAL_SESSION') return;
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setUser(session?.user ?? null);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
