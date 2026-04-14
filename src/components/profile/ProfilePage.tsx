@@ -5,6 +5,7 @@
 
 import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { User, Bell, Bot, Sparkles, Lock, Camera, Globe, Link, Loader2 } from 'lucide-react';
 import { UserProfile, UserRating, WatchlistItem } from '../../types';
 import { GENRES, LEVELS } from '../../constants';
@@ -48,6 +49,7 @@ interface ProfilePageProps {
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
+  // Add navigate for sign-up redirect
   userProfile,
   ratings,
   watchlist,
@@ -79,6 +81,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   isPublicProfile = false,
   onProfileUpdate = () => {},
 }) => {
+  const navigate = useNavigate();
   const currentLevelData = LEVELS.find(l => l.level === userProfile.level);
   const nextLevelData = LEVELS.find(l => l.level === userProfile.level + 1);
 
@@ -401,18 +404,28 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                     </form>
         
                     <div className="text-center mb-6">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsSignUp(!isSignUp);
-                          setAuthEmail('');
-                          setAuthPassword('');
-                          setAuthUsername('');
-                        }}
-                        className="text-sm text-gray-400 hover:text-white transition-colors"
-                      >
-                        {isSignUp ? 'Já tem uma conta? Entre aqui' : 'Não tem conta? Cadastre-se'}
-                      </button>
+                      {isSignUp ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSignUp(false);
+                            setAuthEmail('');
+                            setAuthPassword('');
+                            setAuthUsername('');
+                          }}
+                          className="text-sm text-gray-400 hover:text-white transition-colors"
+                        >
+                          Já tem uma conta? Entre aqui
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => navigate('/')}
+                          className="text-sm text-gray-400 hover:text-white transition-colors"
+                        >
+                          Não tem conta? Faça o quiz e cadastre-se
+                        </button>
+                      )}
                     </div>
 
             <div className="relative flex items-center py-4">

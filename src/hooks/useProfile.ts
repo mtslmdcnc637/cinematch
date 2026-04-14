@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useState, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
 import { UserProfile, UserRating, WatchlistItem } from '../types';
@@ -77,6 +77,9 @@ interface UseProfileReturn {
 export function useProfile({ user }: UseProfileParams): UseProfileReturn {
   const [userProfile, setUserProfile] = useState<UserProfile>({ xp: 0, level: 1 });
   const [currentPage, setCurrentPage] = useState('onboarding');
+  // Track whether the initial page has been set after login,
+  // to prevent loadUserData from overriding the user's current page.
+  const hasSetInitialPageRef = useRef(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [libraryTab, setLibraryTab] = useState<'rated' | 'watchlist' | 'skipped'>('rated');
@@ -120,7 +123,12 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
             setUserProfile(profile);
             if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
               setSelectedGenres(profile.selectedGenres);
-              setCurrentPage('feed');
+              // Only set the initial page on first load — don't override
+              // if the user has already navigated (e.g. to daily_tip).
+              if (!hasSetInitialPageRef.current) {
+                setCurrentPage('feed');
+                hasSetInitialPageRef.current = true;
+              }
             }
           } else {
             setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });

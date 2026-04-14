@@ -2,12 +2,11 @@
  * Utility for calling Supabase Edge Functions with fresh JWTs.
  *
  * Key design decisions:
- * - Uses `getSession()` which auto-refreshes expired tokens when
- *   `autoRefreshToken` is true (configured in supabase.ts).
+ * - Checks token expiry and proactively refreshes when within 60s of expiry.
+ * - `getSession()` does NOT auto-refresh; it returns the in-memory session.
+ *   So we must check expiry ourselves and call `refreshSession()` when needed.
  * - Does NOT call `supabase.auth.signOut()` — that is the responsibility
- *   of the auth layer (useAuth), not an HTTP utility.  Calling signOut()
- *   here caused a cascade that logged the user out of the entire app
- *   whenever a single API call's token refresh failed.
+ *   of the auth layer (useAuth), not an HTTP utility.
  * - On 401, retries once after forcing a `refreshSession()`.
  * - All errors are thrown; callers decide how to handle them.
  */
@@ -18,13 +17,12 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 /**
- * Get a valid access token.
+ * Ensure we have a valid, non-expired access token.
  *
- * `getSession()` automatically refreshes the token when `autoRefreshToken`
- * is true, so we don't need to manually parse the JWT or call
- * `refreshSession()` proactively.  Manual refresh calls race with the
- * SDK's internal auto-refresh and can cause refresh-token-rotation
- * conflicts that result in forced sign-out.
+ * 1. Call getSession() to get the current session.
+ * 2. Parse the JWT to check expiry.
+ * 3. If expired or about to expire (within 60s), call refreshSession().
+ * 4. Never calls signOut() — just throws if refresh fails.
  */
 async function getFreshToken(): Promise<string> {
   if (!supabase) throw new Error('Supabase not initialized');
@@ -33,6 +31,32 @@ async function getFreshToken(): Promise<string> {
 
   if (sessionError || !session) {
     throw new Error('No active session — user must be logged in');
+  }
+
+  // Check if token is expired or about to expire (within 60 seconds)
+  try {
+    const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+    const expiresAt = payload.exp * 1000; // ms
+    const now = Date.now();
+    const buffer = 60 * 1000; // 60 seconds
+
+    if (expiresAt - now < buffer) {
+      // Token is expired or about to expire — refresh it
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshData.session) {
+        // Can't refresh — throw but do NOT sign out
+        throw new Error('Session expired and could not be refreshed');
+      }
+      return refreshData.session.access_token;
+    }
+  } catch (e) {
+    // If token parsing fails (malformed JWT), try refreshing
+    if (e instanceof Error && e.message === 'Session expired and could not be refreshed') throw e;
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshData.session) {
+      throw new Error('Session expired and could not be refreshed');
+    }
+    return refreshData.session.access_token;
   }
 
   return session.access_token;
