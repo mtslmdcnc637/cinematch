@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Target, Zap, Heart, Clock, Star, Film, Tv, Coffee, Moon, TrendingUp, ShieldCheck, ArrowRight, CheckCircle2, Lock, Crown } from 'lucide-react';
+import { Brain, Target, Zap, Heart, Clock, Star, Film, Tv, Coffee, Moon, TrendingUp, ShieldCheck, ArrowRight, CheckCircle2, Lock, Crown, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { QUIZ_PHASES, QUIZ_QUESTIONS, LOADING_TEXTS, RESULT_BENEFITS, PRICING_PLANS } from '../../config/quizData';
 import { supabase } from '../../lib/supabase';
@@ -157,6 +157,39 @@ function calculateProfile(answers: Record<string, any>): CinematographicProfile 
   return PROFILES[bestProfile];
 }
 
+// ──────── WHATSAPP VALIDATION (BR) ────────
+
+/**
+ * Formats and validates Brazilian phone numbers.
+ * Accepts formats: (11) 99999-9999, 11999999999, +55 11 99999-9999, etc.
+ * Returns { formatted, digits, isValid }
+ */
+function formatWhatsApp(value: string): { formatted: string; digits: string; isValid: boolean } {
+  // Strip everything except digits
+  const digits = value.replace(/\D/g, '');
+
+  // Remove leading +55 or 55 if present
+  const national = digits.startsWith('55') ? digits.slice(2) : digits;
+
+  // Format as (XX) XXXXX-XXXX or (XX) XXXX-XXXX
+  let formatted = '';
+  if (national.length === 0) {
+    formatted = '';
+  } else if (national.length <= 2) {
+    formatted = `(${national}`;
+  } else if (national.length <= 7) {
+    formatted = `(${national.slice(0, 2)}) ${national.slice(2)}`;
+  } else {
+    formatted = `(${national.slice(0, 2)}) ${national.slice(2, 7)}-${national.slice(7, 11)}`;
+  }
+
+  // Valid BR mobile: 11 digits starting with a valid DDD (not 00) and 9 after DDD
+  const isValid = national.length === 11
+    && /^[1-9]{2}9\d{8}$/.test(national);
+
+  return { formatted, digits: national, isValid };
+}
+
 // TMDB fetch via Supabase Edge Function (tmdb-proxy)
 // tmdb-proxy has verify_jwt = false, so it works with just the apikey header.
 // No user session is required.
@@ -171,6 +204,26 @@ async function fetchProfileMovies(params: Record<string, string>): Promise<any[]
     return data?.results || [];
   } catch {
     return [];
+  }
+}
+
+// Save quiz progress to Supabase (for analytics / future dashboard)
+async function saveQuizProgress(answers: Record<string, any>, currentStep: number, completed: boolean) {
+  try {
+    if (!supabase) return;
+    await supabase
+      .from('quiz_responses')
+      .insert({
+        name: answers.name || null,
+        email: answers.email || null,
+        whatsapp: answers.whatsapp || null,
+        profile_type: completed ? calculateProfile(answers).name : null,
+        answers: answers,
+        last_step: currentStep,
+        completed: completed,
+      });
+  } catch {
+    // Silently fail — this is analytics, not critical
   }
 }
 
@@ -201,7 +254,10 @@ export default function QuizApp() {
 
   const handleNextQuestion = () => {
     if (currentQuestionIndex < QUIZ_QUESTIONS.length - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
+      const nextIndex = currentQuestionIndex + 1;
+      setCurrentQuestionIndex(nextIndex);
+      // Save progress for analytics (which step they reached)
+      saveQuizProgress(answers, nextIndex, false);
     } else {
       startLoading();
     }
@@ -209,6 +265,9 @@ export default function QuizApp() {
 
   const startLoading = async () => {
     setStep('loading');
+    // Save completed quiz
+    saveQuizProgress(answers, QUIZ_QUESTIONS.length, true);
+
     let progress = 0;
     const interval = setInterval(() => {
       progress += 2;
@@ -295,26 +354,41 @@ export default function QuizApp() {
       return currentAnswer.length < currentQuestion.min;
     }
     if (currentQuestion.type === 'input') {
+      // WhatsApp field is optional — only validate if something was typed
+      if (currentQuestion.id === 'whatsapp') {
+        if (!currentAnswer || currentAnswer.replace(/\D/g, '').length === 0) return false;
+        const { isValid } = formatWhatsApp(currentAnswer);
+        return !isValid;
+      }
       return currentAnswer.trim().length < 2;
     }
     return false;
   };
 
+  // WhatsApp input display value
+  const [whatsappDisplay, setWhatsappDisplay] = useState('');
+
+  const handleWhatsAppChange = (value: string) => {
+    const { formatted, digits } = formatWhatsApp(value);
+    setWhatsappDisplay(formatted);
+    handleAnswer('whatsapp', digits.length > 0 ? digits : '');
+  };
+
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans overflow-hidden relative selection:bg-purple-500/30">
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans overflow-x-hidden relative selection:bg-purple-500/30">
       {/* Background Ambient */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-purple-900/20 blur-[120px]" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-fuchsia-900/10 blur-[100px]" />
       </div>
 
-      <div className="relative z-10 max-w-2xl mx-auto px-6 py-8 min-h-screen flex flex-col">
+      <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-4 sm:py-8 min-h-screen flex flex-col">
 
         {/* Header / Logo */}
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-4 sm:mb-8">
           <div className="flex items-center gap-2">
-            <Film className="w-8 h-8 text-purple-500" />
-            <span className="text-2xl font-bold tracking-tight">CineMatch<span className="text-purple-500">PRO</span></span>
+            <Film className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500" />
+            <span className="text-xl sm:text-2xl font-bold tracking-tight">CineMatch<span className="text-purple-500">PRO</span></span>
           </div>
         </div>
 
@@ -327,76 +401,86 @@ export default function QuizApp() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -50 }}
-              className="flex-1 flex flex-col items-center justify-center text-center mt-10"
+              className="flex-1 flex flex-col items-center justify-start text-center mt-2 sm:mt-10"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 text-sm font-medium mb-6 border border-purple-500/20">
-                <SparklesIcon className="w-4 h-4" />
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-purple-500/10 text-purple-400 text-xs sm:text-sm font-medium mb-3 sm:mb-6 border border-purple-500/20">
+                <SparklesIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                 Descubra seu Perfil Cinematográfico
               </div>
 
-              <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6">
-                Descubra qual é o seu Perfil Cinematográfico e pare de <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500">perder 40 minutos</span> escolhendo o que assistir.
+              <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold leading-tight mb-3 sm:mb-6">
+                Descubra seu Perfil Cinematográfico e pare de <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500">perder 40 minutos</span> escolhendo o que assistir.
               </h1>
 
-              <p className="text-gray-400 text-lg mb-10 max-w-md">
+              <p className="text-gray-400 text-sm sm:text-lg mb-6 sm:mb-10 max-w-md">
                 Responda a este quiz rápido para gerar um algoritmo 100% focado no seu gosto pessoal.
               </p>
 
               <button
                 onClick={handleStart}
-                className="w-full max-w-sm bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 px-8 rounded-2xl text-lg transition-all transform hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2"
+                className="w-full max-w-sm bg-purple-600 hover:bg-purple-500 text-white font-bold py-3.5 sm:py-4 px-8 rounded-2xl text-base sm:text-lg transition-all transform hover:scale-[1.02] active:scale-95 shadow-[0_0_40px_rgba(168,85,247,0.4)] flex items-center justify-center gap-2"
               >
                 Começar Agora <ArrowRight className="w-5 h-5" />
               </button>
 
-              <button
-                onClick={() => navigate('/login')}
-                className="mt-4 text-gray-400 hover:text-white transition-colors text-sm font-medium underline underline-offset-4"
-              >
-                Já tenho conta — Fazer login
-              </button>
-
               {/* Testimonials */}
-              <div className="mt-16 w-full max-w-md text-left">
-                <p className="text-sm text-gray-500 uppercase tracking-wider font-bold mb-4 text-center">O que dizem nossos usuários</p>
-                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl mb-4">
+              <div className="mt-8 sm:mt-16 w-full max-w-md text-left">
+                <p className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider font-bold mb-3 sm:mb-4 text-center">O que dizem nossos usuários</p>
+                <div className="bg-white/5 border border-white/10 p-4 sm:p-5 rounded-2xl mb-3 sm:mb-4">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-fuchsia-500 flex items-center justify-center font-bold text-white">M</div>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-purple-500 to-fuchsia-500 flex items-center justify-center font-bold text-white text-sm">M</div>
                     <div>
-                      <p className="font-bold text-sm text-white">Mariana S.</p>
+                      <p className="font-bold text-xs sm:text-sm text-white">Mariana S.</p>
                       <div className="flex text-amber-400">
-                        {[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 fill-current" />)}
+                        {[1,2,3,4,5].map(i => <Star key={i} className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />)}
                       </div>
                     </div>
                   </div>
-                  <p className="text-gray-300 text-sm italic">"Finalmente parei de brigar com meu namorado pra escolher filme. O app sempre acerta o que a gente quer ver!"</p>
+                  <p className="text-gray-300 text-xs sm:text-sm italic">"Finalmente parei de brigar com meu namorado pra escolher filme. O app sempre acerta o que a gente quer ver!"</p>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl mb-4">
+                <div className="bg-white/5 border border-white/10 p-4 sm:p-5 rounded-2xl mb-3 sm:mb-4">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white">R</div>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-500 flex items-center justify-center font-bold text-white text-sm">R</div>
                     <div>
-                      <p className="font-bold text-sm text-white">Rafael C.</p>
+                      <p className="font-bold text-xs sm:text-sm text-white">Rafael C.</p>
                       <div className="flex text-amber-400">
-                        {[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 fill-current" />)}
+                        {[1,2,3,4,5].map(i => <Star key={i} className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />)}
                       </div>
                     </div>
                   </div>
-                  <p className="text-gray-300 text-sm italic">"A função de mostrar em qual streaming o filme está salvou minha vida. Vale cada centavo do plano PRO."</p>
+                  <p className="text-gray-300 text-xs sm:text-sm italic">"A função de mostrar em qual streaming o filme está salvou minha vida. Vale cada centavo do plano PRO."</p>
                 </div>
 
-                <div className="bg-white/5 border border-white/10 p-5 rounded-2xl">
+                <div className="bg-white/5 border border-white/10 p-4 sm:p-5 rounded-2xl">
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center font-bold text-white">L</div>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center font-bold text-white text-sm">L</div>
                     <div>
-                      <p className="font-bold text-sm text-white">Lucas M.</p>
+                      <p className="font-bold text-xs sm:text-sm text-white">Lucas M.</p>
                       <div className="flex text-amber-400">
-                        {[1,2,3,4,5].map(i => <Star key={i} className="w-3 h-3 fill-current" />)}
+                        {[1,2,3,4,5].map(i => <Star key={i} className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-current" />)}
                       </div>
                     </div>
                   </div>
-                  <p className="text-gray-300 text-sm italic">"O Oráculo de IA me recomendou 3 filmes perfeitos em 5 segundos. Eu demoraria 40 minutos pra achar um desses."</p>
+                  <p className="text-gray-300 text-xs sm:text-sm italic">"O Oráculo de IA me recomendou 3 filmes perfeitos em 5 segundos. Eu demoraria 40 minutos pra achar um desses."</p>
                 </div>
+              </div>
+
+              {/* Login / Cadastro buttons below testimonials */}
+              <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-3 w-full max-w-sm">
+                <button
+                  onClick={handleStart}
+                  className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 px-6 rounded-2xl transition-all text-sm flex items-center justify-center gap-2 border border-white/10"
+                >
+                  <SparklesIcon className="w-4 h-4" />
+                  Cadastrar grátis
+                </button>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="w-full text-gray-400 hover:text-white font-medium py-3 px-6 rounded-2xl transition-colors text-sm underline underline-offset-4"
+                >
+                  Já tenho conta — Login
+                </button>
               </div>
             </motion.div>
           )}
@@ -411,40 +495,67 @@ export default function QuizApp() {
               className="flex-1 flex flex-col"
             >
               {/* Progress Bar */}
-              <div className="mb-10">
-                <div className="flex justify-between text-xs font-medium text-gray-500 mb-3">
+              <div className="mb-4 sm:mb-10">
+                <div className="flex justify-between text-[10px] sm:text-xs font-medium text-gray-500 mb-2 sm:mb-3">
                   {QUIZ_PHASES.map(phase => (
                     <span key={phase.id} className={currentQuestion.phase >= phase.id ? 'text-purple-400' : ''}>
                       {phase.label}
                     </span>
                   ))}
                 </div>
-                <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-1 sm:h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 transition-all duration-500"
                     style={{ width: `${((currentQuestionIndex + 1) / QUIZ_QUESTIONS.length) * 100}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-2 text-right">{currentQuestionIndex + 1} de {QUIZ_QUESTIONS.length}</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2 text-right">{currentQuestionIndex + 1} de {QUIZ_QUESTIONS.length}</p>
               </div>
 
-              <h2 className="text-3xl font-bold mb-2">{currentQuestion.title}</h2>
+              <h2 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">{currentQuestion.title}</h2>
               {currentQuestion.subtitle && (
-                <p className="text-gray-400 mb-8">{currentQuestion.subtitle}</p>
+                <p className="text-gray-400 text-sm sm:text-base mb-4 sm:mb-8">{currentQuestion.subtitle}</p>
               )}
 
-              <div className="flex-1 mt-6">
+              <div className="flex-1 mt-3 sm:mt-6">
                 {currentQuestion.type === 'input' ? (
-                  <input
-                    type={currentQuestion.id === 'email' ? 'email' : 'text'}
-                    placeholder={currentQuestion.placeholder}
-                    value={currentAnswer || ''}
-                    onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-5 px-6 text-xl text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500 focus:bg-white/10 transition-all"
-                    autoFocus
-                  />
+                  currentQuestion.id === 'whatsapp' ? (
+                    /* WhatsApp input with phone icon and formatting */
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
+                        <Phone className="w-5 h-5" />
+                      </div>
+                      <input
+                        type="tel"
+                        placeholder={currentQuestion.placeholder}
+                        value={whatsappDisplay}
+                        onChange={(e) => handleWhatsAppChange(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 sm:py-5 pl-12 pr-6 text-lg sm:text-xl text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500 focus:bg-white/10 transition-all"
+                        autoFocus
+                      />
+                      {answers.whatsapp && answers.whatsapp.length > 0 && !formatWhatsApp(answers.whatsapp).isValid && (
+                        <p className="text-amber-400 text-xs mt-2 ml-1">
+                          Digite um número válido: DDD + 9 + 8 dígitos
+                        </p>
+                      )}
+                      {answers.whatsapp && formatWhatsApp(answers.whatsapp).isValid && (
+                        <p className="text-green-400 text-xs mt-2 ml-1">
+                          Número válido!
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type={currentQuestion.id === 'email' ? 'email' : 'text'}
+                      placeholder={currentQuestion.placeholder}
+                      value={currentAnswer || ''}
+                      onChange={(e) => handleAnswer(currentQuestion.id, e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 sm:py-5 px-6 text-lg sm:text-xl text-white placeholder:text-gray-600 focus:outline-none focus:border-purple-500 focus:bg-white/10 transition-all"
+                      autoFocus
+                    />
+                  )
                 ) : (
-                  <div className="grid gap-3">
+                  <div className="grid gap-2 sm:gap-3">
                     {currentQuestion.options?.map(option => {
                       const isSelected = currentQuestion.type === 'multiple'
                         ? (currentAnswer || []).includes(option.id)
@@ -467,22 +578,22 @@ export default function QuizApp() {
                               handleAnswer(currentQuestion.id, next);
                             }
                           }}
-                          className={`w-full text-left p-5 rounded-2xl border transition-all flex items-center justify-between group ${
+                          className={`w-full text-left p-3.5 sm:p-5 rounded-2xl border transition-all flex items-center justify-between group ${
                             isSelected
                               ? 'bg-purple-500/20 border-purple-500'
                               : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
                           }`}
                         >
-                          <div className="flex items-center gap-4">
-                            {Icon && <Icon className={`w-6 h-6 ${isSelected ? 'text-purple-400' : 'text-gray-400 group-hover:text-gray-300'}`} />}
-                            <span className={`text-lg font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+                          <div className="flex items-center gap-3 sm:gap-4">
+                            {Icon && <Icon className={`w-5 h-5 sm:w-6 sm:h-6 ${isSelected ? 'text-purple-400' : 'text-gray-400 group-hover:text-gray-300'}`} />}
+                            <span className={`text-sm sm:text-lg font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>
                               {option.label}
                             </span>
                           </div>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ${
                             isSelected ? 'border-purple-500 bg-purple-500' : 'border-gray-600'
                           }`}>
-                            {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                            {isSelected && <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-white" />}
                           </div>
                         </button>
                       );
@@ -491,11 +602,11 @@ export default function QuizApp() {
                 )}
               </div>
 
-              <div className="mt-8 pt-6 border-t border-white/10">
+              <div className="mt-4 sm:mt-8 pt-4 sm:pt-6 border-t border-white/10">
                 <button
                   onClick={handleNextQuestion}
                   disabled={isNextDisabled()}
-                  className={`w-full py-4 rounded-2xl text-lg font-bold transition-all ${
+                  className={`w-full py-3.5 sm:py-4 rounded-2xl text-base sm:text-lg font-bold transition-all ${
                     isNextDisabled()
                       ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
                       : 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_30px_rgba(168,85,247,0.3)]'
@@ -516,7 +627,7 @@ export default function QuizApp() {
               exit={{ opacity: 0 }}
               className="flex-1 flex flex-col items-center justify-center text-center"
             >
-              <div className="relative w-32 h-32 mb-8">
+              <div className="relative w-24 h-24 sm:w-32 sm:h-32 mb-6 sm:mb-8">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="45" fill="none" stroke="#1f2937" strokeWidth="4" />
                   <motion.circle
@@ -527,18 +638,18 @@ export default function QuizApp() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white">{loadingProgress}%</span>
+                  <span className="text-2xl sm:text-3xl font-bold text-white">{loadingProgress}%</span>
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold mb-4">Criando seu perfil sob medida</h2>
+              <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Criando seu perfil sob medida</h2>
               <AnimatePresence mode="wait">
                 <motion.p
                   key={loadingTextIndex}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="text-purple-400 text-lg"
+                  className="text-purple-400 text-base sm:text-lg"
                 >
                   {LOADING_TEXTS[loadingTextIndex]}
                 </motion.p>
@@ -553,30 +664,30 @@ export default function QuizApp() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 flex flex-col pb-10"
+              className="flex-1 flex flex-col pb-6 sm:pb-10"
             >
               {/* Profile Card */}
-              <div className="text-center mb-8">
+              <div className="text-center mb-6 sm:mb-8">
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: "spring", damping: 15, delay: 0.2 }}
-                  className={`w-28 h-28 mx-auto rounded-full bg-gradient-to-br ${profileResult.color} flex items-center justify-center text-6xl shadow-[0_0_50px_rgba(168,85,247,0.3)] mb-6`}
+                  className={`w-20 h-20 sm:w-28 sm:h-28 mx-auto rounded-full bg-gradient-to-br ${profileResult.color} flex items-center justify-center text-4xl sm:text-6xl shadow-[0_0_50px_rgba(168,85,247,0.3)] mb-4 sm:mb-6`}
                 >
                   {profileResult.icon}
                 </motion.div>
-                <h2 className="text-3xl font-bold mb-2">Você é o <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500">{profileResult.name}</span>!</h2>
-                <p className="text-gray-400 text-lg leading-relaxed max-w-md mx-auto">{profileResult.description}</p>
+                <h2 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">Você é o <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500">{profileResult.name}</span>!</h2>
+                <p className="text-gray-400 text-sm sm:text-lg leading-relaxed max-w-md mx-auto">{profileResult.description}</p>
               </div>
 
               {/* Movie Grid */}
               {profileMovies.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Film className="w-5 h-5 text-purple-400" />
+                <div className="mb-6 sm:mb-8">
+                  <h3 className="text-sm sm:text-lg font-bold mb-3 sm:mb-4 flex items-center gap-2">
+                    <Film className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                     Filmes selecionados para você
                   </h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     {profileMovies.map((movie: any) => (
                       <div key={movie.id} className="relative aspect-[2/3] rounded-xl overflow-hidden group">
                         <img
@@ -594,7 +705,7 @@ export default function QuizApp() {
               )}
 
               {/* Benefits */}
-              <div className="grid gap-3 mb-8">
+              <div className="grid gap-2 sm:gap-3 mb-6 sm:mb-8">
                 {RESULT_BENEFITS.map((benefit, i) => {
                   const Icon = IconMap[benefit.icon];
                   return (
@@ -603,14 +714,14 @@ export default function QuizApp() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
                       key={i}
-                      className="bg-white/5 border border-white/10 p-4 rounded-2xl flex gap-3"
+                      className="bg-white/5 border border-white/10 p-3 sm:p-4 rounded-2xl flex gap-3"
                     >
-                      <div className="bg-purple-500/20 p-2.5 rounded-xl h-fit">
-                        <Icon className="w-5 h-5 text-purple-400" />
+                      <div className="bg-purple-500/20 p-2 sm:p-2.5 rounded-xl h-fit">
+                        <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400" />
                       </div>
                       <div>
-                        <h3 className="font-bold mb-0.5">{benefit.title}</h3>
-                        <p className="text-gray-400 text-sm">{benefit.desc}</p>
+                        <h3 className="font-bold text-sm sm:text-base mb-0.5">{benefit.title}</h3>
+                        <p className="text-gray-400 text-xs sm:text-sm">{benefit.desc}</p>
                       </div>
                     </motion.div>
                   );
@@ -619,7 +730,7 @@ export default function QuizApp() {
 
               <button
                 onClick={() => setStep('pricing')}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-5 rounded-2xl text-xl shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all transform hover:scale-[1.02]"
+                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 sm:py-5 rounded-2xl text-base sm:text-xl shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all transform hover:scale-[1.02]"
               >
                 Desbloquear Meu Perfil Completo
               </button>
@@ -632,52 +743,52 @@ export default function QuizApp() {
               key="pricing"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex-1 flex flex-col pb-10"
+              className="flex-1 flex flex-col pb-6 sm:pb-10"
             >
-              <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold mb-4">Escolha seu acesso Pro</h2>
+              <div className="text-center mb-6 sm:mb-8">
+                <h2 className="text-xl sm:text-3xl font-bold mb-3 sm:mb-4">Escolha seu acesso Pro</h2>
 
                 {/* Real Urgency - NO fake timer */}
-                <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 text-purple-400 px-4 py-2 rounded-full font-medium text-sm">
-                  <Crown className="w-4 h-4 fill-current" />
+                <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 text-purple-400 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-medium text-xs sm:text-sm">
+                  <Crown className="w-3 h-3 sm:w-4 sm:h-4 fill-current" />
                   Preço de lançamento válido para os primeiros {EARLY_BIRD_LIMIT} usuários
                 </div>
               </div>
 
-              <div className="grid gap-4 mb-8">
+              <div className="grid gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {PRICING_PLANS.map(plan => (
                   <div
                     key={plan.id}
                     onClick={() => setSelectedPlan(plan.id)}
-                    className={`relative p-6 rounded-3xl border-2 cursor-pointer transition-all ${
+                    className={`relative p-4 sm:p-6 rounded-3xl border-2 cursor-pointer transition-all ${
                       selectedPlan === plan.id
                         ? 'bg-purple-900/20 border-purple-500'
                         : 'bg-white/5 border-white/10 hover:border-white/30'
                     }`}
                   >
                     {plan.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                         Mais Popular
                       </div>
                     )}
 
                     <div className="flex justify-between items-center">
                       <div>
-                        <h3 className="text-xl font-bold mb-1">{plan.name}</h3>
+                        <h3 className="text-base sm:text-xl font-bold mb-0.5 sm:mb-1">{plan.name}</h3>
                         {plan.savings && (
-                          <span className="text-green-400 text-sm font-medium">{plan.savings}</span>
+                          <span className="text-green-400 text-xs sm:text-sm font-medium">{plan.savings}</span>
                         )}
                       </div>
                       <div className="text-right">
-                        <div className="text-2xl font-bold">{plan.price}</div>
-                        <div className="text-gray-500 text-sm">{plan.period}</div>
+                        <div className="text-lg sm:text-2xl font-bold">{plan.price}</div>
+                        <div className="text-gray-500 text-xs sm:text-sm">{plan.period}</div>
                       </div>
                     </div>
 
-                    <div className={`absolute right-6 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                    <div className={`absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
                       selectedPlan === plan.id ? 'border-purple-500 bg-purple-500' : 'border-gray-600'
                     }`}>
-                      {selectedPlan === plan.id && <CheckCircle2 className="w-4 h-4 text-white" />}
+                      {selectedPlan === plan.id && <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-white" />}
                     </div>
                   </div>
                 ))}
@@ -686,24 +797,24 @@ export default function QuizApp() {
               <button
                 onClick={() => handleSubscribe(selectedPlan)}
                 disabled={isSubscribing}
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-5 rounded-2xl text-xl shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all transform hover:scale-[1.02] mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 sm:py-5 rounded-2xl text-base sm:text-xl shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all transform hover:scale-[1.02] mb-4 sm:mb-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubscribing ? 'Processando...' : 'Assinar Agora'}
               </button>
 
               {/* Guarantee & Trust */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 flex items-start gap-4">
-                <ShieldCheck className="w-8 h-8 text-green-400 shrink-0" />
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4">
+                <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8 text-green-400 shrink-0" />
                 <div>
-                  <h4 className="font-bold mb-1">Garantia de 7 Dias</h4>
-                  <p className="text-gray-400 text-sm">
+                  <h4 className="font-bold text-sm sm:text-base mb-1">Garantia de 7 Dias</h4>
+                  <p className="text-gray-400 text-xs sm:text-sm">
                     Se você não sentir que economizou tempo e encontrou filmes melhores na primeira semana, devolvemos 100% do seu dinheiro. Sem perguntas.
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-center items-center gap-2 text-gray-500 text-sm">
-                <Lock className="w-4 h-4" /> Pagamento 100% Seguro via Stripe
+              <div className="mt-4 sm:mt-6 flex justify-center items-center gap-2 text-gray-500 text-xs sm:text-sm">
+                <Lock className="w-3 h-3 sm:w-4 sm:h-4" /> Pagamento 100% Seguro via Stripe
               </div>
             </motion.div>
           )}

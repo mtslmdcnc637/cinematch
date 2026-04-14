@@ -19,18 +19,17 @@ serve(async (req) => {
       throw new Error("TMDB_API_KEY is not configured")
     }
 
-    // Validate that the request includes a valid Supabase anon key.
-    // We accept both the auto-set SUPABASE_ANON_KEY and any manually-set
-    // secret of the same name, so we compare against the header value sent
-    // by our own frontend (VITE_SUPABASE_ANON_KEY).
-    // The apikey header is always sent by our client — we just don't
-    // enforce a strict server-side comparison because the auto-set env
-    // var and manually-set secrets can differ, causing false 401s.
+    // Validate that the request includes a plausible Supabase anon key.
+    // We check that the apikey header exists AND looks like a valid
+    // Supabase JWT (starts with "eyJ" — the base64-encoded JSON header
+    // for {"alg":"HS256","typ":"JWT"}). This prevents random abuse while
+    // avoiding false 401s from env-var mismatches between the auto-set
+    // SUPABASE_ANON_KEY and manually-set secrets.
     const requestApiKey = req.headers.get("apikey")
-    if (!requestApiKey) {
-      console.error("Missing apikey header")
+    if (!requestApiKey || !requestApiKey.startsWith("eyJ")) {
+      console.error("Invalid or missing apikey header")
       return new Response(
-        JSON.stringify({ error: "Missing apikey" }),
+        JSON.stringify({ error: "Invalid apikey" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
       )
     }

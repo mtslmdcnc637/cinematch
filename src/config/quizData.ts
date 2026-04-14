@@ -205,6 +205,15 @@ export const QUIZ_QUESTIONS = [
     subtitle: 'Fique tranquilo, odiamos spam tanto quanto você.',
     type: 'input',
     placeholder: 'seu.melhor@email.com'
+  },
+  {
+    id: 'whatsapp',
+    phase: 5,
+    title: 'Qual seu WhatsApp?',
+    subtitle: 'Opcional. Enviaremos novidades e dicas de filmes por lá.',
+    type: 'input',
+    placeholder: '(11) 99999-9999',
+    inputType: 'tel'
   }
 ];
 

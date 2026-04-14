@@ -135,3 +135,30 @@ CREATE POLICY "Users can manage their own push subscriptions"
   ON push_subscriptions FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- 8. Quiz Responses (for analytics / dashboard)
+CREATE TABLE IF NOT EXISTS quiz_responses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  name TEXT,
+  email TEXT,
+  whatsapp TEXT,
+  profile_type TEXT,
+  answers JSONB,
+  last_step INTEGER DEFAULT 0,
+  completed BOOLEAN DEFAULT false
+);
+
+ALTER TABLE quiz_responses ENABLE ROW LEVEL SECURITY;
+
+-- Allow anonymous inserts (quiz users may not be logged in yet)
+CREATE POLICY "Allow anon inserts" ON quiz_responses
+  FOR INSERT WITH CHECK (true);
+
+-- Only authenticated users / service role can read analytics
+CREATE POLICY "Allow service role select" ON quiz_responses
+  FOR SELECT USING (auth.role() = 'service_role' OR auth.uid() IS NOT NULL);
+
+CREATE INDEX IF NOT EXISTS idx_quiz_responses_created_at ON quiz_responses(created_at);
+CREATE INDEX IF NOT EXISTS idx_quiz_responses_completed ON quiz_responses(completed);
+CREATE INDEX IF NOT EXISTS idx_quiz_responses_profile_type ON quiz_responses(profile_type);
