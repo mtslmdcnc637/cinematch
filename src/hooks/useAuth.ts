@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { supabaseService } from '../services/supabaseService';
 import { toast } from 'sonner';
@@ -35,15 +35,18 @@ export function useAuth(): UseAuthReturn {
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
+  // Track whether the user explicitly requested sign-out, so we can
+  // distinguish user-initiated SIGNED_OUT from SDK-triggered ones
+  // (e.g. refresh-token rotation failure) that may be spurious.
+  const userInitiatedSignOut = useRef(false);
+
   useEffect(() => {
     if (!supabase) return;
 
     // Use getSession() as the source of truth for the initial auth state.
     // The INITIAL_SESSION event from onAuthStateChange is intentionally
     // ignored because it can fire with an expired access_token before the
-    // internal token-refresh completes. When the refresh then fails,
-    // SIGNED_OUT fires and the user is abruptly logged out — causing the
-    // "token disappears after seconds" bug.
+    // internal token-refresh completes.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setIsInitialLoading(false);
@@ -60,9 +63,32 @@ export function useAuth(): UseAuthReturn {
       if (event === 'INITIAL_SESSION') return;
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        userInitiatedSignOut.current = false;
         setUser(session?.user ?? null);
       } else if (event === 'SIGNED_OUT') {
-        setUser(null);
+        // If the user explicitly signed out, clear immediately.
+        if (userInitiatedSignOut.current) {
+          setUser(null);
+          userInitiatedSignOut.current = false;
+          return;
+        }
+
+        // SDK-triggered SIGNED_OUT — verify the session is truly gone
+        // before accepting it.  A spurious SIGNED_OUT can fire when a
+        // concurrent refreshSession() call causes a refresh-token
+        // rotation conflict; getSession() will still return a valid
+        // session in that case.
+        supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+          if (currentSession?.user) {
+            // Session still exists — ignore the spurious SIGNED_OUT
+            setUser(currentSession.user);
+          } else {
+            // Session is truly gone
+            setUser(null);
+          }
+        }).catch(() => {
+          setUser(null);
+        });
       }
     });
 
@@ -100,10 +126,12 @@ export function useAuth(): UseAuthReturn {
 
   const handleSignOut = async () => {
     try {
+      userInitiatedSignOut.current = true;
       await supabaseService.signOut();
       setUser(null);
       toast.success('Deslogado com sucesso!');
     } catch {
+      userInitiatedSignOut.current = false;
       toast.error('Erro ao sair da conta');
     }
   };
