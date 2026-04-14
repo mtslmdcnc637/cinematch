@@ -355,7 +355,7 @@ export default function QuizApp() {
               </button>
 
               <button
-                onClick={() => navigate('/?action=login')}
+                onClick={() => navigate('/login')}
                 className="mt-4 text-gray-400 hover:text-white transition-colors text-sm font-medium underline underline-offset-4"
               >
                 Já tenho conta — Fazer login
