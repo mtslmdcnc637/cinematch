@@ -227,7 +227,7 @@ async function saveQuizProgress(answers: Record<string, any>, currentStep: numbe
   }
 }
 
-type QuizStep = 'start' | 'question' | 'loading' | 'result' | 'pricing';
+type QuizStep = 'start' | 'question' | 'loading' | 'result' | 'signup' | 'pricing';
 
 export default function QuizApp() {
   const navigate = useNavigate();
@@ -238,6 +238,8 @@ export default function QuizApp() {
   const [loadingTextIndex, setLoadingTextIndex] = useState(0);
   const [selectedPlan, setSelectedPlan] = useState('quarterly');
   const [isSubscribing, setIsSubscribing] = useState(false);
+  const [signupPassword, setSignupPassword] = useState('');
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   // Profile result
   const [profileResult, setProfileResult] = useState<CinematographicProfile | null>(null);
@@ -293,37 +295,64 @@ export default function QuizApp() {
     }, 60);
   };
 
+  // Handle account creation on the signup step
+  const handleSignUp = async () => {
+    if (!answers.email) {
+      toast.error('E-mail não encontrado. Refaça o quiz.');
+      return;
+    }
+    if (signupPassword.length < 6) {
+      toast.error('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+    setIsSigningUp(true);
+    try {
+      await supabaseService.signUpWithEmail(answers.email, signupPassword, answers.name || 'Usuário');
+      // Wait for session to be established (works because mailer_autoconfirm = true)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Check if we have a session now
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        toast.success('Conta criada com sucesso!');
+        setStep('pricing');
+      } else {
+        // Email already exists — sign in instead
+        try {
+          await supabaseService.signInWithEmail(answers.email, signupPassword);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession) {
+            toast.success('Login realizado!');
+            setStep('pricing');
+          } else {
+            toast.error('Não foi possível fazer login. Tente novamente.');
+          }
+        } catch {
+          toast.error('Este e-mail já está cadastrado com outra senha. Faça login manualmente.', { duration: 5000 });
+          navigate('/login?redirect=/pricing');
+        }
+      }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro ao criar conta';
+      toast.error(message, { duration: 5000 });
+    } finally {
+      setIsSigningUp(false);
+    }
+  };
+
   const handleSubscribe = async (planId: string) => {
     setIsSubscribing(true);
     try {
-      let { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        // Try to create account with quiz email so we can get a session
-        if (answers.email) {
-          try {
-            const tempPassword = 'cm_' + crypto.randomUUID().replace(/-/g, '') + '!A1';
-            await supabaseService.signUpWithEmail(answers.email, tempPassword, answers.name || 'Usuário');
-            // Wait for session to be established (works when email confirmation is disabled)
-            await new Promise(resolve => setTimeout(resolve, 1500));
-          } catch {
-            // Email already registered — user needs to log in
-            toast.error('Este e-mail já está cadastrado. Faça login para assinar.', { duration: 5000 });
-            navigate('/login?redirect=/pricing');
-            setIsSubscribing(false);
-            return;
-          }
-        }
-        // Re-check session after signup
-        const { data: { session: newSession } } = await supabase.auth.getSession();
-        if (!newSession) {
-          // Account created but email confirmation required — redirect to login
-          toast.error('Conta criada! Verifique seu e-mail e faça login para assinar.', { duration: 6000 });
-          navigate('/login?redirect=/pricing');
-          setIsSubscribing(false);
-          return;
-        }
-        session = newSession;
+        // Should not happen since signup step creates a session,
+        // but handle gracefully just in case
+        toast.error('Sessão expirada. Faça login novamente.', { duration: 5000 });
+        navigate('/login?redirect=/pricing');
+        setIsSubscribing(false);
+        return;
       }
 
       const data = await invokeEdgeFunction<{ url?: string }>('stripe-checkout', {
@@ -721,11 +750,82 @@ export default function QuizApp() {
               </div>
 
               <button
-                onClick={() => setStep('pricing')}
+                onClick={() => setStep('signup')}
                 className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 sm:py-5 rounded-2xl text-base sm:text-xl shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all transform hover:scale-[1.02]"
               >
                 Desbloquear Meu Perfil Completo
               </button>
+            </motion.div>
+          )}
+
+          {/* SIGNUP SCREEN */}
+          {step === 'signup' && (
+            <motion.div
+              key="signup"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex-1 flex flex-col items-center justify-center text-center pb-6 sm:pb-10"
+            >
+              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-500 flex items-center justify-center text-3xl sm:text-4xl shadow-[0_0_40px_rgba(168,85,247,0.3)] mb-4 sm:mb-6">
+                <Lock className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
+              </div>
+
+              <h2 className="text-xl sm:text-3xl font-bold mb-2">Crie sua conta para desbloquear</h2>
+              <p className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md">
+                Quase lá! Crie uma senha para acessar seu perfil cinematográfico completo e todas as funcionalidades PRO.
+              </p>
+
+              <div className="w-full max-w-sm space-y-4 text-left">
+                {/* Email field — pre-filled, read-only */}
+                <div>
+                  <label className="text-xs sm:text-sm text-gray-500 mb-1 block">E-mail</label>
+                  <input
+                    type="email"
+                    value={answers.email || ''}
+                    readOnly
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 sm:py-4 px-4 sm:px-5 text-white text-base sm:text-lg opacity-60 cursor-not-allowed"
+                  />
+                </div>
+
+                {/* Password field */}
+                <div>
+                  <label className="text-xs sm:text-sm text-gray-500 mb-1 block">Crie sua senha</label>
+                  <input
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={signupPassword}
+                    onChange={(e) => setSignupPassword(e.target.value)}
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 sm:py-4 px-4 sm:px-5 text-white text-base sm:text-lg placeholder:text-gray-600 focus:outline-none focus:border-purple-500 focus:bg-white/10 transition-all"
+                    autoFocus
+                    minLength={6}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && signupPassword.length >= 6) handleSignUp();
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleSignUp}
+                  disabled={isSigningUp || signupPassword.length < 6}
+                  className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3.5 sm:py-4 rounded-2xl text-base sm:text-lg shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isSigningUp ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                      Criando conta...
+                    </>
+                  ) : (
+                    <>
+                      Criar Conta e Continuar <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Privacy note — NO login link */}
+              <p className="mt-6 sm:mt-8 text-gray-600 text-xs max-w-xs">
+                Seus dados estão seguros conosco. Criamos essa conta para que você possa acessar seu perfil a qualquer momento.
+              </p>
             </motion.div>
           )}
 
