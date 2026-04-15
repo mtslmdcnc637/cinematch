@@ -147,7 +147,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ show, onClose }) => (
             </div>
             <div>
               <h2 className="text-3xl font-bold font-display text-white">Como funciona?</h2>
-              <p className="text-gray-400">O guia definitivo do CineMatch</p>
+              <p className="text-gray-400">O guia definitivo do MrCine</p>
             </div>
           </div>
 

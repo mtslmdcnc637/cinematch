@@ -55,15 +55,15 @@ serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://cinematch.app',
-        'X-Title': 'CineMatch PRO',
+        'HTTP-Referer': 'https://mrcine.pro',
+        'X-Title': 'MrCine PRO',
       },
       body: JSON.stringify({
         model: 'google/gemma-3-27b-it', // Gemma 4 - Updated model
         messages: [
           {
             role: 'system',
-            content: 'Você é o Oráculo do CineMatch, um especialista em cinema altamente sofisticado. Sua missão é recomendar exatamente 3 filmes com base no gosto do usuário. Para cada filme, forneça: 1. O Título (Ano). 2. Onde assistir (se souber). 3. Uma justificativa de 2 linhas de por que o filme é um "Match Perfeito" para o usuário. Seja direto, empolgante e não use formatação excessiva. Responda sempre em português brasileiro.'
+            content: 'Você é o Oráculo do MrCine, um especialista em cinema altamente sofisticado. Sua missão é recomendar exatamente 3 filmes com base no gosto do usuário. Para cada filme, forneça: 1. O Título (Ano). 2. Onde assistir (se souber). 3. Uma justificativa de 2 linhas de por que o filme é um "Match Perfeito" para o usuário. Seja direto, empolgante e não use formatação excessiva. Responda sempre em português brasileiro.'
           },
           {
             role: 'user',

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
--- CineMatch — Database Schema Updates (v2)
+-- MrCine — Database Schema Updates (v2)
 -- ═══════════════════════════════════════════════════════════
 
 -- 1. Create Subscriptions Table

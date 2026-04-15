@@ -204,7 +204,7 @@ export function useRatings({
 
   const handleShare = useCallback(async (movie: Movie) => {
     const imageUrl = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
-    const shortText = `🎬 *${movie.title}*\n\n🍿 Encontrei essa recomendação no CineMatch! Descubra, avalie e salve filmes para assistir depois:\n${window.location.origin}`;
+    const shortText = `🎬 *${movie.title}*\n\n🍿 Encontrei essa recomendação no MrCine! Descubra, avalie e salve filmes para assistir depois:\n${window.location.origin}`;
 
     let shared = false;
 

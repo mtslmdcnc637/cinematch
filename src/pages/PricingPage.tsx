@@ -91,7 +91,7 @@ export default function PricingPage() {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 text-sm font-medium mb-6 border border-purple-500/20">
             <Crown className="w-4 h-4 fill-current" />
-            CineMatch PRO
+            MrCine PRO
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-6">
             Desbloqueie o poder total do <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-fuchsia-500">Oráculo</span>

@@ -7,7 +7,7 @@ const corsHeaders = {
 }
 
 // Admin password must match the one set in the frontend DashboardPage
-const ADMIN_PASSWORD = "cinematch2025"
+const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "mrcine2026"
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

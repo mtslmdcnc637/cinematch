@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center shadow-[0_0_20px_rgba(168,85,247,0.4)]">
             <Clapperboard className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight font-display">CineMatch</h1>
+          <h1 className="text-2xl font-bold tracking-tight font-display">MrCine</h1>
           {isPro && <ProBadge size="sm" />}
         </div>
 

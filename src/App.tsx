@@ -141,7 +141,7 @@ export default function App() {
   // Track page views
   useEffect(() => {
     if (currentPage) {
-      trackPageView(`/${currentPage}`, `CineMatch - ${currentPage}`);
+      trackPageView(`/${currentPage}`, `MrCine - ${currentPage}`);
     }
   }, [currentPage, trackPageView]);
 

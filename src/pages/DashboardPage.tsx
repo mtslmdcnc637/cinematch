@@ -5,7 +5,7 @@ import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast } from 'sonner';
 
 // ─── Admin password (change this to your desired password) ───
-const ADMIN_PASSWORD = 'cinematch2025';
+const ADMIN_PASSWORD = 'mrcine2026';
 
 // ─── Types ───
 interface ProfileRow {
@@ -159,7 +159,7 @@ export default function DashboardPage() {
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
               <Film className="w-8 h-8 text-purple-500" />
-              <span className="text-2xl font-bold">CineMatch<span className="text-purple-500">PRO</span></span>
+              <span className="text-2xl font-bold">MrCine<span className="text-purple-500">PRO</span></span>
             </div>
             <h1 className="text-2xl font-bold mb-2">Dashboard Admin</h1>
             <p className="text-gray-400 text-sm">Insira a senha de administrador para acessar</p>
@@ -220,7 +220,7 @@ export default function DashboardPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Film className="w-6 h-6 text-purple-500" />
-            <span className="text-lg font-bold">CineMatch<span className="text-purple-500">PRO</span> Dashboard</span>
+            <span className="text-lg font-bold">MrCine<span className="text-purple-500">PRO</span> Dashboard</span>
           </div>
           <div className="flex items-center gap-3">
             <button

@@ -1,7 +1,7 @@
-// CineMatch Push Notification Service Worker
+// MrCine Push Notification Service Worker
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {};
-  const title = data.title || 'CineMatch';
+  const title = data.title || 'MrCine';
   const options = {
     body: data.body || 'Você tem uma nova notificação!',
     icon: '/icon-192.png',

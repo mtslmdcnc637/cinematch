@@ -16,7 +16,7 @@ export const supabaseService = {
     if (error) throw error;
 
     if (data.user) {
-      await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
           id: data.user.id,
@@ -24,6 +24,7 @@ export const supabaseService = {
           xp: 0,
           level: 1
         });
+      if (profileError) console.error('Failed to create profile:', profileError);
     }
 
     return data;
@@ -151,17 +152,19 @@ export const supabaseService = {
   updateProfile: async (userId: string, updates: { xp?: number, level?: number, selectedGenres?: number[], username?: string, avatar_url?: string, email?: string }) => {
     if (!supabase) return;
     try {
+      // Build update object with only the provided fields
+      const updateData: Record<string, unknown> = {};
+      if (updates.xp !== undefined) updateData.xp = updates.xp;
+      if (updates.level !== undefined) updateData.level = updates.level;
+      if (updates.selectedGenres !== undefined) updateData.selected_genres = updates.selectedGenres;
+      if (updates.username !== undefined) updateData.username = updates.username;
+      if (updates.avatar_url !== undefined) updateData.avatar_url = updates.avatar_url;
+      if (updates.email !== undefined) updateData.email = updates.email;
+
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: userId,
-          xp: updates.xp || 0,
-          level: updates.level || 1,
-          selected_genres: updates.selectedGenres,
-          username: updates.username,
-          avatar_url: updates.avatar_url,
-          email: updates.email
-        }, { onConflict: 'id' });
+        .update(updateData)
+        .eq('id', userId);
       if (error) throw error;
     } catch (e) {
       throw e;

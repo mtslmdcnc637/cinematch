@@ -85,7 +85,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
             Nunca mais brigue para escolher um filme!
           </h2>
           <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto leading-relaxed">
-            O CineMatch ajuda você e seus amigos a descobrirem filmes que todo mundo vai amar. É fácil, divertido e acaba com a dúvida na hora de assistir algo novo.
+            O MrCine ajuda você e seus amigos a descobrirem filmes que todo mundo vai amar. É fácil, divertido e acaba com a dúvida na hora de assistir algo novo.
           </p>
 
           <div className="grid md:grid-cols-3 gap-6 mb-12 w-full">

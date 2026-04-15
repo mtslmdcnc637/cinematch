@@ -299,7 +299,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 <div className="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-3 border border-white/10 mt-2">
                   <Link className="w-4 h-4 text-gray-400 flex-shrink-0" />
                   <span className="text-sm text-gray-300 truncate">
-                    cinematch.app/u/{userProfile.username}
+                    mrcine.pro/u/{userProfile.username}
                   </span>
                 </div>
               )}

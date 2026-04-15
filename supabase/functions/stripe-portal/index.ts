@@ -36,20 +36,51 @@ serve(async (req) => {
   }
 
   try {
+    // ── JWT Authentication ──────────────────────────────────────────
+    const authHeader = req.headers.get("Authorization")
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing Authorization header" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      )
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("SUPABASE_URL or SUPABASE_ANON_KEY is not configured")
+    }
+
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey)
+    const token = authHeader.replace("Bearer ", "")
+    const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser(token)
+
+    if (authError || !authUser) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      )
+    }
+
     const { customer_id, user_id, return_url } = await req.json()
+
+    // Ensure the authenticated user is the one accessing the portal
+    if (user_id && authUser.id !== user_id) {
+      return new Response(
+        JSON.stringify({ error: "User ID mismatch" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+      )
+    }
 
     // ── Resolve Stripe customer id ───────────────────────────────────
     let stripeCustomerId = customer_id as string | undefined
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    if (!supabaseServiceKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured")
+    }
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     if (!stripeCustomerId && user_id) {
-      // Look up from subscriptions table
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!
-      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      if (!supabaseUrl || !supabaseServiceKey) {
-        throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured")
-      }
-      const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
       const { data, error } = await supabase
         .from("subscriptions")
         .select("stripe_customer_id")
@@ -71,7 +102,7 @@ serve(async (req) => {
     }
 
     // ── Create a Billing Portal session ──────────────────────────────
-    const returnUrl = return_url || `${Deno.env.get("APP_URL") || "https://cinematch.app"}/pricing`
+    const returnUrl = return_url || `${Deno.env.get("APP_URL") || "https://mrcine.pro"}/pricing`
 
     const session = await stripePost("/billing_portal/sessions", {
       customer: stripeCustomerId,

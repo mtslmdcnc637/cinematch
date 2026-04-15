@@ -6,7 +6,7 @@ const SECTIONS = [
   {
     icon: FileText,
     title: '1. Descrição do Serviço',
-    content: `O CineMatch é uma plataforma de recomendação de filmes e séries que utiliza inteligência artificial e algoritmos de personalização para sugerir conteúdos adequados ao seu perfil cinematográfico. O serviço inclui, mas não se limita a:
+    content: `O MrCine é uma plataforma de recomendação de filmes e séries que utiliza inteligência artificial e algoritmos de personalização para sugerir conteúdos adequados ao seu perfil cinematográfico. O serviço inclui, mas não se limita a:
 
 • Quiz de perfil cinematográfico para mapear suas preferências
 • Recomendações personalizadas baseadas em seus gostos e humor
@@ -15,12 +15,12 @@ const SECTIONS = [
 • Integração com plataformas de streaming para verificar disponibilidade
 • Perfil público compartilhável
 
-O CineMatch não hospeda, distribui ou exibe conteúdo audiovisual. Apenas recomenda e direciona o usuário para as plataformas oficiais onde o conteúdo está disponível.`
+O MrCine não hospeda, distribui ou exibe conteúdo audiovisual. Apenas recomenda e direciona o usuário para as plataformas oficiais onde o conteúdo está disponível.`
   },
   {
     icon: Scale,
     title: '2. Contas e Registros',
-    content: `Para utilizar os recursos completos do CineMatch, você precisa criar uma conta. Ao se registrar, você concorda que:
+    content: `Para utilizar os recursos completos do MrCine, você precisa criar uma conta. Ao se registrar, você concorda que:
 
 • Fornecerá informações verdadeiras, precisas e completas
 • Manterá seus dados atualizados
@@ -33,7 +33,7 @@ Podemos suspender ou encerrar contas que violem estes termos ou que permaneçam 
   {
     icon: Shield,
     title: '3. Uso Aceitável',
-    content: `Ao usar o CineMatch, você se compromete a NÃO:
+    content: `Ao usar o MrCine, você se compromete a NÃO:
 
 • Violar qualquer lei ou regulamento aplicável
 • Copiar, modificar ou distribuir o conteúdo da plataforma sem autorização
@@ -49,7 +49,7 @@ Violações destas regras podem resultar em advertência, suspensão temporária
   {
     icon: CreditCard,
     title: '4. Pagamentos e Assinaturas',
-    content: `O CineMatch oferece planos gratuitos e pagos (PRO). Sobre os planos pagos:
+    content: `O MrCine oferece planos gratuitos e pagos (PRO). Sobre os planos pagos:
 
 • Os preços são exibidos em Reais (R$) e incluem todos os impostos aplicáveis
 • O pagamento é processado de forma segura via Stripe
@@ -63,7 +63,7 @@ Violações destas regras podem resultar em advertência, suspensão temporária
   {
     icon: Lightbulb,
     title: '5. Propriedade Intelectual',
-    content: `Todo o conteúdo do CineMatch — incluindo mas não limitado a textos, gráficos, logos, ícones, imagens, clipes de áudio, software e compilação de dados — é propriedade do CineMatch ou de seus licenciadores e é protegido pelas leis brasileiras e internacionais de propriedade intelectual.
+    content: `Todo o conteúdo do MrCine — incluindo mas não limitado a textos, gráficos, logos, ícones, imagens, clipes de áudio, software e compilação de dados — é propriedade do MrCine ou de seus licenciadores e é protegido pelas leis brasileiras e internacionais de propriedade intelectual.
 
 • Você não adquire nenhum direito de propriedade sobre o conteúdo ao usar o serviço
 • Pôsters, títulos e descrições de filmes são propriedade de seus respectivos estúdios e distribuidores
@@ -73,7 +73,7 @@ Violações destas regras podem resultar em advertência, suspensão temporária
   {
     icon: AlertTriangle,
     title: '6. Limitação de Responsabilidade',
-    content: `O CineMatch é fornecido "como está" e "conforme disponível". Na máxima extensão permitida por lei:
+    content: `O MrCine é fornecido "como está" e "conforme disponível". Na máxima extensão permitida por lei:
 
 • Não garantimos que o serviço estará disponível de forma ininterrupta ou livre de erros
 • As recomendações são sugestões baseadas em algoritmos e não constituem garantia de satisfação
@@ -82,7 +82,7 @@ Violações destas regras podem resultar em advertência, suspensão temporária
 • Nossa responsabilidade total é limitada ao valor pago por você nos últimos 12 meses de assinatura
 • Não nos responsabilizamos por danos indiretos, incidentais, especiais ou consequentes
 
-Esta limitação não se aplica a danos causados por dolo ou negligência grave do CineMatch.`
+Esta limitação não se aplica a danos causados por dolo ou negligência grave do MrCine.`
   },
   {
     icon: RefreshCw,
@@ -95,7 +95,7 @@ Esta limitação não se aplica a danos causados por dolo ou negligência grave 
 • Se você não concordar com as alterações, pode cancelar sua assinatura sem multa
 • Alterações que reduzam seus direitos só entram em vigor após o período de notificação
 
-A versão mais recente destes termos estará sempre disponível em cinematch.com.br/terms.`
+A versão mais recente destes termos estará sempre disponível em mrcine.pro/terms.`
   },
   {
     icon: Lock,
@@ -155,10 +155,10 @@ export default function TermsPage() {
         {/* Intro */}
         <div className="glass-card rounded-2xl p-6 mb-8 border border-white/10">
           <p className="text-gray-300 leading-relaxed">
-            Bem-vindo ao CineMatch! Ao acessar e utilizar nossa plataforma, você concorda com os
+            Bem-vindo ao MrCine! Ao acessar e utilizar nossa plataforma, você concorda com os
             seguintes Termos de Uso. Recomendamos que leia este documento com atenção antes de
             utilizar nossos serviços. Se você não concordar com qualquer parte destes termos, por
-            favor, não utilize o CineMatch.
+            favor, não utilize o MrCine.
           </p>
         </div>
 
@@ -199,10 +199,10 @@ export default function TermsPage() {
             </Link>
             <span className="text-gray-600">•</span>
             <a
-              href="mailto:contato@cinematch.com.br"
+              href="mailto:contato@mrcine.pro"
               className="text-purple-400 hover:text-purple-300 underline underline-offset-2 decoration-purple-400/40 hover:decoration-purple-300/60 transition-colors text-sm"
             >
-              contato@cinematch.com.br
+              contato@mrcine.pro
             </a>
           </div>
         </div>

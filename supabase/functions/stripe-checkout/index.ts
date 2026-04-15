@@ -84,13 +84,47 @@ serve(async (req) => {
   }
 
   try {
+    // ── JWT Authentication ──────────────────────────────────────────
+    const authHeader = req.headers.get("Authorization")
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing Authorization header" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      )
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("SUPABASE_URL or SUPABASE_ANON_KEY is not configured")
+    }
+
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey)
+    const token = authHeader.replace("Bearer ", "")
+    const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser(token)
+
+    if (authError || !authUser) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      )
+    }
+
     const { plan_id, user_id, user_email } = await req.json()
 
-    // ── Validate inputs ──────────────────────────────────────────────
+    // ── Validate inputs & ownership ─────────────────────────────────
     if (!plan_id || !user_id || !user_email) {
       return new Response(
         JSON.stringify({ error: "Missing required fields: plan_id, user_id, user_email" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      )
+    }
+
+    // Ensure the authenticated user is the one creating the checkout
+    if (authUser.id !== user_id) {
+      return new Response(
+        JSON.stringify({ error: "User ID mismatch" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
       )
     }
 
@@ -103,10 +137,9 @@ serve(async (req) => {
     }
 
     // ── Initialise Supabase admin client ─────────────────────────────
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not configured")
+    if (!supabaseServiceKey) {
+      throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured")
     }
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
@@ -140,7 +173,7 @@ serve(async (req) => {
             user_id,
             stripe_customer_id: customerId,
             plan_type: plan_id,
-            status: "trialing",
+            status: "incomplete",
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id" }
@@ -156,14 +189,9 @@ serve(async (req) => {
       "payment_method_types[0]": "card",
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": 1,
-      success_url: `${Deno.env.get("APP_URL") || "https://cinematch.app"}/pricing?success=true`,
-      cancel_url: `${Deno.env.get("APP_URL") || "https://cinematch.app"}/pricing?canceled=true`,
+      success_url: `${Deno.env.get("APP_URL") || "https://mrcine.pro"}/pricing?success=true`,
+      cancel_url: `${Deno.env.get("APP_URL") || "https://mrcine.pro"}/pricing?canceled=true`,
       metadata: { supabase_user_id: user_id, plan_id },
-    }
-
-    // Monthly plan gets a 7-day free trial
-    if (plan_id === "monthly") {
-      sessionParams["subscription_data[trial_period_days]"] = 7
     }
 
     // ── Create the Checkout Session ──────────────────────────────────

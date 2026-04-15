@@ -103,7 +103,7 @@ Cookies de personalização:
 
 Você pode gerenciar cookies:
 • Através das configurações do seu navegador
-• Nas configurações de privacidade da sua conta CineMatch
+• Nas configurações de privacidade da sua conta MrCine
 • Cookies essenciais não podem ser desabilitados sem comprometer o funcionamento do serviço
 
 Não utilizamos cookies de rastreamento de terceiros para publicidade direcionada.`,
@@ -156,8 +156,8 @@ Direito de informação (Art. 18, I):
 • Ser informado sobre quais dados são coletados e como são utilizados
 
 Como exercer seus direitos:
-• Acesse as configurações de privacidade da sua conta CineMatch
-• Envie um e-mail para privacidade@cinematch.com.br
+• Acesse as configurações de privacidade da sua conta MrCine
+• Envie um e-mail para privacidade@mrcine.pro
 • Responderemos sua solicitação em até 15 dias úteis, conforme previsto na LGPD`,
   },
   {
@@ -166,7 +166,7 @@ Como exercer seus direitos:
     content: `Para exercer seus direitos LGPD, esclarecer dúvidas sobre esta política ou reportar preocupações sobre o tratamento de seus dados pessoais:
 
 Encarregado de Proteção de Dados (DPO)
-E-mail: privacidade@cinematch.com.br
+E-mail: privacidade@mrcine.pro
 Assunto: "Solicitação LGPD — [seu nome]"
 
 Prazo de resposta: até 15 dias úteis
@@ -177,14 +177,14 @@ Se você entender que o tratamento de seus dados viola a LGPD, poderá apresenta
 • Site: www.gov.br/anpd
 • E-mail: ouvidoria@anpd.gov.br
 
-Endereço do CineMatch:
-CineMatch Tecnologia Ltda.
+Endereço do MrCine:
+MrCine Tecnologia Ltda.
 CNPJ: [inserir CNPJ]
 Endereço: [inserir endereço da sede]
 
 Alterações nesta política:
 • Notificaremos você por e-mail sobre alterações significativas
-• A versão atualizada estará sempre disponível em cinematch.com.br/privacy
+• A versão atualizada estará sempre disponível em mrcine.pro/privacy
 • O uso continuado após notificação constitui aceitação das alterações`,
   },
 ];
@@ -230,7 +230,7 @@ export default function PrivacyPage() {
         <div className="glass-card rounded-2xl p-6 mb-8 border border-white/10">
           <p className="text-gray-300 leading-relaxed">
             A privacidade dos seus dados é fundamental para nós. Esta Política de Privacidade
-            descreve como o CineMatch coleta, usa, armazena e protece suas informações pessoais,
+            descreve como o MrCine coleta, usa, armazena e protece suas informações pessoais,
             em conformidade com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
             Leia atentamente para entender como tratamos seus dados.
           </p>
@@ -273,10 +273,10 @@ export default function PrivacyPage() {
             </Link>
             <span className="text-gray-600">•</span>
             <a
-              href="mailto:privacidade@cinematch.com.br"
+              href="mailto:privacidade@mrcine.pro"
               className="text-purple-400 hover:text-purple-300 underline underline-offset-2 decoration-purple-400/40 hover:decoration-purple-300/60 transition-colors text-sm"
             >
-              privacidade@cinematch.com.br
+              privacidade@mrcine.pro
             </a>
           </div>
         </div>

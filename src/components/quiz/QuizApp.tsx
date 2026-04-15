@@ -417,7 +417,7 @@ export default function QuizApp() {
         <div className="flex justify-center mb-4 sm:mb-8">
           <div className="flex items-center gap-2">
             <Film className="w-6 h-6 sm:w-8 sm:h-8 text-purple-500" />
-            <span className="text-xl sm:text-2xl font-bold tracking-tight">CineMatch<span className="text-purple-500">PRO</span></span>
+            <span className="text-xl sm:text-2xl font-bold tracking-tight">MrCine<span className="text-purple-500">PRO</span></span>
           </div>
         </div>
 

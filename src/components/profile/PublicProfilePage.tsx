@@ -131,7 +131,7 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ username }
             className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition-all hover:shadow-[0_0_20px_rgba(147,51,234,0.4)]"
           >
             <Film className="w-5 h-5" />
-            Conheça o CineMatch
+            Conheça o MrCine
           </a>
         </motion.div>
       </div>
@@ -327,7 +327,7 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ username }
             className="inline-flex items-center gap-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold py-4 px-10 rounded-full transition-all duration-300 hover:shadow-[0_0_30px_rgba(147,51,234,0.4)] hover:scale-[1.02] text-lg"
           >
             <Film className="w-5 h-5" />
-            Criar meu perfil no CineMatch
+            Criar meu perfil no MrCine
           </a>
           <p className="text-gray-500 text-sm mt-4">
             Descubra filmes perfeitos para você

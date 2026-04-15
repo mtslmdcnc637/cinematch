@@ -178,7 +178,13 @@ serve(async (req) => {
             },
             { onConflict: "stripe_subscription_id" }
           )
-        if (subError) console.error("DB upsert error (checkout):", subError)
+        if (subError) {
+          console.error("DB upsert error (checkout):", subError)
+          return new Response(
+            JSON.stringify({ error: "Database error", details: subError.message }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+          )
+        }
 
         // Update profile for quick lookup
         await updateProfileSubscription(supabase, userId, planType, status)
@@ -229,7 +235,10 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId)
-        if (error) console.error("DB update error (sub updated):", error)
+        if (error) {
+          console.error("DB update error (sub updated):", error)
+          return new Response(JSON.stringify({ error: "Database error" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 })
+        }
 
         await updateProfileSubscription(supabase, userId, planType, status)
         break
@@ -263,7 +272,10 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId)
-        if (error) console.error("DB update error (sub deleted):", error)
+        if (error) {
+          console.error("DB update error (sub deleted):", error)
+          return new Response(JSON.stringify({ error: "Database error" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 })
+        }
 
         await updateProfileSubscription(supabase, userId, "free", "canceled")
         break
@@ -297,7 +309,10 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq("user_id", userId)
-        if (error) console.error("DB update error (payment failed):", error)
+        if (error) {
+          console.error("DB update error (payment failed):", error)
+          return new Response(JSON.stringify({ error: "Database error" }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 })
+        }
 
         await updateProfileSubscription(supabase, userId, planType, "past_due")
         break
