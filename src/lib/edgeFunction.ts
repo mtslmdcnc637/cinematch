@@ -2,12 +2,17 @@
  * Utility for calling Supabase Edge Functions with fresh JWTs.
  *
  * Key design decisions:
- * - Checks token expiry and proactively refreshes when within 60s of expiry.
- * - `getSession()` does NOT auto-refresh; it returns the in-memory session.
- *   So we must check expiry ourselves and call `refreshSession()` when needed.
+ * - Always tries `getSession()` first, then falls back to `refreshSession()`
+ *   if the token is expired or about to expire (within 5 min buffer).
+ * - `getSession()` returns the in-memory session but does NOT auto-refresh.
+ *   `autoRefreshToken` in the Supabase client only works for SDK calls
+ *   (e.g. `supabase.from('table').select()`), NOT for raw `fetch()` calls.
+ *   Since edge functions are called via raw `fetch()`, we must handle
+ *   token refresh ourselves aggressively.
  * - Does NOT call `supabase.auth.signOut()` — that is the responsibility
  *   of the auth layer (useAuth), not an HTTP utility.
- * - On 401, retries once after forcing a `refreshSession()`.
+ * - On 401, retries once after forcing a `refreshSession()`, then tries
+ *   `getSession()` one final time in case autoRefreshToken kicked in.
  * - All errors are thrown; callers decide how to handle them.
  *
  * For tmdb-proxy: verify_jwt is disabled server-side, so we send the
@@ -48,17 +53,27 @@ async function getFreshToken(): Promise<string> {
     return refreshData.session.access_token;
   }
 
-  // Check if token is expired or about to expire (within 60 seconds)
+  // Check if token is expired or about to expire (within 5 minutes buffer).
+  // We use a generous buffer because:
+  // 1. Edge function calls use raw fetch() — autoRefreshToken doesn't kick in.
+  // 2. Clock skew between client and Supabase servers.
+  // 3. Network latency before the token reaches the Supabase gateway.
   try {
     const payload = JSON.parse(atob(session.access_token.split('.')[1]));
     const expiresAt = payload.exp * 1000; // ms
     const now = Date.now();
-    const buffer = 60 * 1000; // 60 seconds
+    const buffer = 5 * 60 * 1000; // 5 minutes
 
     if (expiresAt - now < buffer) {
       // Token is expired or about to expire — refresh it
+      console.log('[edgeFunction] Token expiring soon, refreshing...', {
+        expiresAt: new Date(expiresAt).toISOString(),
+        now: new Date(now).toISOString(),
+        remaining: Math.round((expiresAt - now) / 1000) + 's',
+      });
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
+        console.error('[edgeFunction] Token refresh failed:', refreshError);
         throw new Error('Session expired and could not be refreshed');
       }
       return refreshData.session.access_token;
@@ -66,6 +81,7 @@ async function getFreshToken(): Promise<string> {
   } catch (e) {
     // If token parsing fails (malformed JWT), try refreshing
     if (e instanceof Error && e.message === 'Session expired and could not be refreshed') throw e;
+    console.warn('[edgeFunction] Failed to parse JWT, attempting refresh:', e);
     const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
     if (refreshError || !refreshData.session) {
       throw new Error('Session expired and could not be refreshed');
@@ -151,6 +167,28 @@ export async function invokeEdgeFunction<T = unknown>(
         });
 
         if (!retryResponse.ok) {
+          // Still failing after refresh — one last attempt:
+          // autoRefreshToken might have refreshed the session in the
+          // background between our refreshSession() and now.
+          const { data: lastChanceSession } = await supabase.auth.getSession();
+          if (lastChanceSession?.session?.access_token) {
+            const lastHeaders: Record<string, string> = {
+              'Content-Type': 'application/json',
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${lastChanceSession.session.access_token}`,
+            };
+            const lastResponse = await fetch(url, {
+              method: 'POST',
+              headers: lastHeaders,
+              body: JSON.stringify(body),
+            });
+            if (lastResponse.ok) {
+              return lastResponse.json() as Promise<T>;
+            }
+            const lastErrorData = await lastResponse.json().catch(() => ({}));
+            throw new Error(lastErrorData.error || `Edge function error: ${lastResponse.status}`);
+          }
+
           const errorData = await retryResponse.json().catch(() => ({}));
           throw new Error(errorData.error || `Edge function error: ${retryResponse.status}`);
         }
