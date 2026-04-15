@@ -4,8 +4,9 @@ import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarC
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast } from 'sonner';
 
-// ─── Admin password (change this to your desired password) ───
-const ADMIN_PASSWORD = 'mrcine2026';
+// Admin password is validated server-side only (admin-stats edge function).
+// The frontend never stores or compares the actual password.
+// We just send what the user types to the backend for verification.
 
 // ─── Types ───
 interface ProfileRow {
@@ -58,6 +59,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (sessionStorage.getItem('cm_admin') === 'true') {
       setIsAuthed(true);
+      // Restore password from session for subsequent API calls
+      const savedPw = sessionStorage.getItem('cm_admin_pw');
+      if (savedPw) setPassword(savedPw);
     }
   }, []);
 
@@ -74,7 +78,7 @@ export default function DashboardPage() {
         profiles: ProfileRow[];
         quiz_responses: QuizResponseRow[];
         subscriptions: SubscriptionRow[];
-      }>('admin-stats', { admin_password: ADMIN_PASSWORD });
+      }>('admin-stats', { admin_password: password });
 
       setProfiles(data.profiles || []);
       setQuizResponses(data.quiz_responses || []);
@@ -86,11 +90,14 @@ export default function DashboardPage() {
     }
   };
 
-  const handleLogin = () => {
-    if (password === ADMIN_PASSWORD) {
+  const handleLogin = async () => {
+    // Verify password server-side instead of client-side comparison
+    try {
+      await invokeEdgeFunction('admin-stats', { admin_password: password });
       setIsAuthed(true);
       sessionStorage.setItem('cm_admin', 'true');
-    } else {
+      sessionStorage.setItem('cm_admin_pw', password);
+    } catch {
       toast.error('Senha incorreta');
     }
   };
@@ -98,6 +105,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     setIsAuthed(false);
     sessionStorage.removeItem('cm_admin');
+    sessionStorage.removeItem('cm_admin_pw');
     setPassword('');
   };
 

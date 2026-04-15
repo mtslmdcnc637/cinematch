@@ -66,7 +66,7 @@ Base legal para processamento:
 Processadores essenciais:
 • Supabase — infraestrutura de banco de dados e autenticação (EUA/Irlanda)
 • Stripe — processamento seguro de pagamentos (EUA)
-• OpenAI — processamento de IA para o Oráculo (EUA)
+• OpenRouter/DeepSeek — processamento de IA para o Oráculo (EUA)
 
 Compartilhamos apenas os dados estritamente necessários para cada serviço executar sua função. Todos os processadores estão vinculados a acordos de processamento de dados em conformidade com a LGPD.
 
@@ -179,7 +179,7 @@ Se você entender que o tratamento de seus dados viola a LGPD, poderá apresenta
 
 Endereço do MrCine:
 MrCine Tecnologia Me Ltda.
-CNPJ: 00.000.000/0001-00
+CNPJ: [a ser registrado]
 Endereço: mrcine.pro — empresa 100% digital
 
 Alterações nesta política:
