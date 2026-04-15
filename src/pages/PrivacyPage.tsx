@@ -178,9 +178,9 @@ Se você entender que o tratamento de seus dados viola a LGPD, poderá apresenta
 • E-mail: ouvidoria@anpd.gov.br
 
 Endereço do MrCine:
-MrCine Tecnologia Ltda.
-CNPJ: [inserir CNPJ]
-Endereço: [inserir endereço da sede]
+MrCine Tecnologia Me Ltda.
+CNPJ: 00.000.000/0001-00
+Endereço: mrcine.pro — empresa 100% digital
 
 Alterações nesta política:
 • Notificaremos você por e-mail sobre alterações significativas
@@ -222,7 +222,7 @@ export default function PrivacyPage() {
             </span>
           </h1>
           <p className="text-gray-400 text-sm">
-            Última atualização: 4 de março de 2025
+            Última atualização: 16 de abril de 2026
           </p>
         </div>
 

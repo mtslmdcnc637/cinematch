@@ -173,9 +173,12 @@ export function useMovies({
   }, [user, providers]);
 
   // ── Infinite scroll (kept as useEffect – complex side effects) ─────────
+  const isInfiniteScrollRef = useRef(false);
   useEffect(() => {
     if (!user) return;
+    if (isInfiniteScrollRef.current) return; // Prevent concurrent fetches
     if (unratedMovies.length < 5 && !isLoadingMore && !isFeedLoading && movies.length > 0) {
+      isInfiniteScrollRef.current = true;
       setIsLoadingMore(true);
       const nextPage = feedPage + 1;
       const params: Record<string, string> = {
@@ -198,10 +201,13 @@ export function useMovies({
             return [...prev, ...uniqueNew];
           });
           setFeedPage(nextPage);
-          setIsLoadingMore(false);
         })
         .catch(() => {
+          // Silently handle infinite scroll errors
+        })
+        .finally(() => {
           setIsLoadingMore(false);
+          isInfiniteScrollRef.current = false;
         });
     }
   }, [user, unratedMovies.length, feedPage, activeGenre, isLoadingMore, isFeedLoading, movies.length]);

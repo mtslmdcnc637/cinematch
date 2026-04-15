@@ -49,7 +49,7 @@ Violações destas regras podem resultar em advertência, suspensão temporária
   {
     icon: CreditCard,
     title: '4. Pagamentos e Assinaturas',
-    content: `O MrCine oferece planos gratuitos e pagos (PRO). Sobre os planos pagos:
+    content: `O MrCine oferece planos pagos (PRO). Criar uma conta é gratuito, mas o uso do app requer assinatura. Sobre os planos pagos:
 
 • Os preços são exibidos em Reais (R$) e incluem todos os impostos aplicáveis
 • O pagamento é processado de forma segura via Stripe
@@ -148,7 +148,7 @@ export default function TermsPage() {
             </span>
           </h1>
           <p className="text-gray-400 text-sm">
-            Última atualização: 4 de março de 2025
+            Última atualização: 16 de abril de 2026
           </p>
         </div>
 

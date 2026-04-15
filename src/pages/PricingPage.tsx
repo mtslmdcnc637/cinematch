@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Star, ShieldCheck, Lock, ArrowLeft, Crown } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner';
 import { PRICING_PLANS } from '../config/quizData';
 
 export default function PricingPage() {
@@ -19,7 +19,7 @@ export default function PricingPage() {
 
       if (!session) {
         toast.error('Faça login ou crie uma conta primeiro para assinar.', { duration: 5000 });
-        navigate('/login');
+        navigate('/login?redirect=/pricing');
         setIsLoading(null);
         return;
       }
@@ -52,7 +52,7 @@ export default function PricingPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast.error('Faça login primeiro.', { duration: 5000 });
-        navigate('/login');
+        navigate('/login?redirect=/pricing');
         setIsLoading(null);
         return;
       }
@@ -74,6 +74,7 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans overflow-y-auto selection:bg-purple-500/30">
+      <Toaster theme="dark" position="top-center" toastOptions={{ style: { background: 'rgba(20, 20, 20, 0.8)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' } }} />
       {/* Background Ambient */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] rounded-full bg-purple-900/20 blur-[120px]" />
@@ -144,7 +145,7 @@ export default function PricingPage() {
                   <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-purple-400 shrink-0" /> <span className="text-gray-200">Economia de {plan.id === 'quarterly' ? '11' : '36'}%</span></li>
                 )}
                 {plan.id === 'monthly' && (
-                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-purple-400 shrink-0" /> <span className="text-gray-200">7 dias de trial grátis</span></li>
+                  <li className="flex items-start gap-3"><CheckCircle2 className="w-5 h-5 text-purple-400 shrink-0" /> <span className="text-gray-200">Garantia de 7 dias</span></li>
                 )}
               </ul>
               <button

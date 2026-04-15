@@ -7,6 +7,37 @@ const corsHeaders = {
 
 const TMDB_API_BASE = "https://api.themoviedb.org/3"
 
+// Allowed TMDB endpoints (prevent arbitrary API calls)
+const ALLOWED_ENDPOINTS = [
+  "movie/popular",
+  "movie/now_playing",
+  "movie/top_rated",
+  "movie/upcoming",
+  "movie/",
+  "search/movie",
+  "discover/movie",
+  "trending/movie/",
+  "genre/movie/list",
+]
+
+function isEndpointAllowed(endpoint: string): boolean {
+  const clean = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint
+  return ALLOWED_ENDPOINTS.some(allowed => clean.startsWith(allowed))
+}
+
+// Simple in-memory rate limiter per IP
+const requestCounts = new Map<string, number[]>()
+const MAX_REQUESTS = 60
+const WINDOW_MS = 60 * 1000 // 1 minute
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const calls = requestCounts.get(ip)?.filter(t => now - t < WINDOW_MS) || []
+  if (calls.length >= MAX_REQUESTS) return true
+  requestCounts.set(ip, [...calls, now])
+  return false
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -19,12 +50,16 @@ serve(async (req) => {
       throw new Error("TMDB_API_KEY is not configured")
     }
 
-    // Validate that the request includes a plausible Supabase anon key.
-    // We check that the apikey header exists AND looks like a valid
-    // Supabase JWT (starts with "eyJ" — the base64-encoded JSON header
-    // for {"alg":"HS256","typ":"JWT"}). This prevents random abuse while
-    // avoiding false 401s from env-var mismatches between the auto-set
-    // SUPABASE_ANON_KEY and manually-set secrets.
+    // Rate limiting by IP
+    const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("cf-connecting-ip") || "unknown"
+    if (isRateLimited(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Tente novamente em instantes." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
+      )
+    }
+
+    // Validate apikey header
     const requestApiKey = req.headers.get("apikey")
     if (!requestApiKey || !requestApiKey.startsWith("eyJ")) {
       console.error("Invalid or missing apikey header")
@@ -40,6 +75,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Missing required field: endpoint (e.g., movie/popular, search/movie)" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      )
+    }
+
+    // Endpoint allowlist check
+    if (!isEndpointAllowed(endpoint)) {
+      return new Response(
+        JSON.stringify({ error: "Endpoint not allowed" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
       )
     }
 

@@ -58,9 +58,9 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
         toast.error('Erro ao salvar gêneros. Verifique o console para mais detalhes.');
       }
     } else {
-      // Non-logged-in user should be redirected to quiz, but if they reach here,
-      // navigate to profile page so they can sign up
-      onContinue();
+      // Non-logged-in user must authenticate first
+      toast.error('Crie sua conta primeiro para continuar.');
+      onLogin();
     }
   };
 

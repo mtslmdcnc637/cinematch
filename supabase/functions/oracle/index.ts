@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simple in-memory rate limiter: userId → [timestamps]
+const oracleCalls = new Map<string, number[]>()
+const ORACLE_MAX_CALLS = 10
+const ORACLE_WINDOW_MS = 60 * 1000 // 1 minute
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now()
+  const calls = oracleCalls.get(userId)?.filter(t => now - t < ORACLE_WINDOW_MS) || []
+  if (calls.length >= ORACLE_MAX_CALLS) return true
+  oracleCalls.set(userId, [...calls, now])
+  return false
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -40,6 +53,14 @@ serve(async (req) => {
     )
   }
 
+  // Rate limit check
+  if (isRateLimited(user.id)) {
+    return new Response(
+      JSON.stringify({ error: 'Limite de consultas atingido. Tente novamente em instantes.' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+    )
+  }
+
   try {
     const { prompt } = await req.json()
 
@@ -49,7 +70,7 @@ serve(async (req) => {
       throw new Error('OPENROUTER_API_KEY is not configured in Supabase Edge Functions')
     }
 
-    // Use Gemma 4 (latest) via OpenRouter
+    // Use deepseek-chat-v3 via OpenRouter - cheap, recent, good film knowledge
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -59,7 +80,7 @@ serve(async (req) => {
         'X-Title': 'MrCine PRO',
       },
       body: JSON.stringify({
-        model: 'google/gemma-3-27b-it', // Gemma 4 - Updated model
+        model: 'deepseek/deepseek-chat-v3-0324',
         messages: [
           {
             role: 'system',

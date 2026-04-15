@@ -61,7 +61,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
 
       if (sub) {
         setPlanType(sub.plan_type as PlanType);
-        setIsTrialing(sub.status === 'trialing');
+        setIsTrialing(sub.status === 'trialing' || sub.status === 'incomplete');
         setStripeCustomerId(sub.stripe_customer_id || undefined);
       } else if (profile?.subscription_plan && profile.subscription_plan !== 'free') {
         // Fallback: check profile subscription_plan
