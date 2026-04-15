@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { invokeEdgeFunction } from '../lib/edgeFunction';
 
 type PlanType = 'free' | 'monthly' | 'quarterly' | 'annual';
 
@@ -67,7 +68,32 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
         // Fallback: check profile subscription_plan
         setPlanType(profile.subscription_plan as PlanType);
       } else {
-        setPlanType('free');
+        // Last resort: check Stripe directly via check-subscription edge function
+        // This handles the case where the webhook didn't fire or was blocked
+        try {
+          const checkResult = await invokeEdgeFunction<{ status: string; plan_type: string; source: string }>(
+            'check-subscription',
+            {}
+          );
+          if (checkResult.status === 'active' && checkResult.plan_type) {
+            setPlanType(checkResult.plan_type as PlanType);
+            setIsTrialing(false);
+            // Re-fetch from DB since check-subscription updates it
+            const { data: updatedSub } = await supabase
+              .from('subscriptions')
+              .select('plan_type, status, stripe_customer_id')
+              .eq('user_id', userId)
+              .eq('status', 'active')
+              .maybeSingle();
+            if (updatedSub) {
+              setStripeCustomerId(updatedSub.stripe_customer_id || undefined);
+            }
+          } else {
+            setPlanType('free');
+          }
+        } catch {
+          setPlanType('free');
+        }
       }
     } catch {
       // Silently handle error

@@ -1,14 +1,35 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Star, ShieldCheck, Lock, ArrowLeft, Crown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, Star, ShieldCheck, Lock, ArrowLeft, Crown, PartyPopper } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast, Toaster } from 'sonner';
 import { PRICING_PLANS } from '../config/quizData';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 export default function PricingPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const { refreshSubscription } = useSubscription();
+
+  // Handle Stripe redirect back
+  useEffect(() => {
+    if (searchParams.get('success') === 'true') {
+      setShowSuccess(true);
+      // Refresh subscription data from DB (webhook may have already updated it)
+      refreshSubscription();
+      // Clean URL without reloading
+      setSearchParams({}, { replace: true });
+      // Auto-redirect to home after 5 seconds
+      const timer = setTimeout(() => navigate('/'), 5000);
+      return () => clearTimeout(timer);
+    } else if (searchParams.get('canceled') === 'true') {
+      toast.info('Assinatura cancelada. Nenhuma cobrança foi feita.');
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const handleSubscribe = async (planId: string) => {
     setIsLoading(planId);
@@ -88,6 +109,26 @@ export default function PricingPage() {
         >
           <ArrowLeft className="w-5 h-5" /> Voltar
         </button>
+
+        {/* Success Banner */}
+        {showSuccess && (
+          <div className="mb-8 bg-green-500/10 border border-green-500/30 rounded-2xl p-6 text-center">
+            <PartyPopper className="w-12 h-12 text-green-400 mx-auto mb-3" />
+            <h2 className="text-2xl font-bold text-green-400 mb-2">Pagamento confirmado!</h2>
+            <p className="text-gray-300 mb-3">
+              Sua assinatura MrCine PRO está ativa. Aproveite swipes ilimitados, dicas infinitas e o Oráculo de IA!
+            </p>
+            <p className="text-gray-500 text-sm">
+              Redirecionando em 5 segundos...
+            </p>
+            <button
+              onClick={() => navigate('/')}
+              className="mt-4 bg-green-600 hover:bg-green-500 text-white font-bold px-8 py-3 rounded-xl transition-all"
+            >
+              Começar a usar
+            </button>
+          </div>
+        )}
 
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 text-sm font-medium mb-6 border border-purple-500/20">
