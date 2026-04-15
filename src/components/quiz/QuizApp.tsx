@@ -344,12 +344,19 @@ export default function QuizApp() {
   const handleSubscribe = async (planId: string) => {
     setIsSubscribing(true);
     try {
+      // Force-refresh session to avoid 401 on edge function
+      try {
+        await supabase.auth.refreshSession();
+      } catch {
+        // Ignore — invokeEdgeFunction will handle token refresh internally
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
         // Should not happen since signup step creates a session,
         // but handle gracefully just in case
-        toast.error('Sessão expirada. Faça login novamente.', { duration: 5000 });
+        toast.error('Sessão expirada. Faça login novamente.', { duration: 6000 });
         navigate('/login?redirect=/pricing');
         setIsSubscribing(false);
         return;
@@ -364,11 +371,18 @@ export default function QuizApp() {
       if (data?.url) {
         window.location.href = data.url;
       } else {
+        console.error('[QuizApp handleSubscribe] No URL returned from stripe-checkout');
         throw new Error('URL de checkout não retornada');
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao processar assinatura';
-      toast.error(message, { duration: 5000 });
+      console.error('[QuizApp handleSubscribe] Error:', message);
+      if (message.includes('401') || message.includes('Authentication failed') || message.includes('Session expired')) {
+        toast.error('Sessão expirada. Faça login novamente.', { duration: 6000 });
+        navigate('/login?redirect=/pricing');
+      } else {
+        toast.error(message, { duration: 6000 });
+      }
     } finally {
       setIsSubscribing(false);
     }
