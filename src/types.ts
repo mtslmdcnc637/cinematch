@@ -32,3 +32,17 @@ export type UserProfile = {
   genres?: number[];
   ratings?: UserRating[];
 };
+
+// ── Oracle structured result types ──
+export interface OracleMovieRec {
+  title: string;
+  year: number;
+  tmdb_id: number;
+  reason: string;
+}
+
+export interface OracleResult {
+  summary: string;
+  movies: OracleMovieRec[];
+  fallback_text?: string;
+}

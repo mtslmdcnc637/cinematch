@@ -7,7 +7,7 @@ import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, Bell, Bot, Sparkles, Lock, Camera, Globe, Link, Loader2 } from 'lucide-react';
-import { UserProfile, UserRating, WatchlistItem } from '../../types';
+import { UserProfile, UserRating, WatchlistItem, type OracleResult, type Movie } from '../../types';
 import { GENRES, LEVELS } from '../../constants';
 import { ProBadge, ProAvatarBorder } from '../common/ProBadge';
 import { toast } from 'sonner';
@@ -22,7 +22,8 @@ interface ProfilePageProps {
   planType: string;
   onSignOut: () => void;
   handleExportForAI: () => void;
-  oracleResult: string | null;
+  oracleResult: OracleResult | null;
+  oracleMovies?: Movie[];
   isOracleLoading: boolean;
   showExportModal: boolean;
   setShowExportModal: (show: boolean) => void;

@@ -35,7 +35,8 @@ export default function PricingPage() {
       // Get user identity from current session.
       // invokeEdgeFunction handles token refresh internally (getFreshToken + retry on 401),
       // so we do NOT call refreshSession() here to avoid refresh-token rotation conflicts.
-      const { data: { session } } = await supabase.auth.getSession();
+      const result = await supabase?.auth.getSession();
+      const session = result?.data?.session;
 
       if (!session) {
         toast.error('Faça login ou crie uma conta primeiro para assinar.', { duration: 5000 });
@@ -75,7 +76,8 @@ export default function PricingPage() {
     try {
       // Get user identity from current session.
       // invokeEdgeFunction handles token refresh internally.
-      const { data: { session } } = await supabase.auth.getSession();
+      const getSessionResult = await supabase?.auth.getSession();
+      const session = getSessionResult?.data?.session;
       if (!session) {
         toast.error('Faça login primeiro.', { duration: 6000 });
         navigate('/login?redirect=/pricing');

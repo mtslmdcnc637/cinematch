@@ -6,8 +6,9 @@
 import { useState, useCallback, type Dispatch, type SetStateAction, type MouseEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
+import { fetchMovieById, searchMovies } from '../services/tmdbService';
 import { LEVELS } from '../constants';
-import { Movie, Rating, UserRating, WatchlistItem, UserProfile } from '../types';
+import { Movie, Rating, UserRating, WatchlistItem, UserProfile, type OracleResult } from '../types';
 import { toast } from 'sonner';
 
 interface Friend {
@@ -42,7 +43,8 @@ interface UseRatingsReturn {
   setEditingMovie: (movie: Movie | null) => void;
   showExportModal: boolean;
   setShowExportModal: (show: boolean) => void;
-  oracleResult: string | null;
+  oracleResult: OracleResult | null;
+  oracleMovies: Movie[];
   isOracleLoading: boolean;
   ratingAnimation: RatingAnimation | null;
   selectedFriends: string[];
@@ -70,16 +72,47 @@ export function useRatings({
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [oracleResult, setOracleResult] = useState<string | null>(null);
+  const [oracleResult, setOracleResult] = useState<OracleResult | null>(null);
+  const [oracleMovies, setOracleMovies] = useState<Movie[]>([]);
   const [isOracleLoading, setIsOracleLoading] = useState(false);
   const [ratingAnimation, setRatingAnimation] = useState<RatingAnimation | null>(null);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
 
-  // ── Oracle mutation (replaces raw async calls in handleExportForAI / handleGroupExportForAI) ──
+  // ── Oracle mutation ──────────────────────────────────────────────────
   const exportMutation = useMutation({
     mutationFn: (prompt: string) => supabaseService.askOracle(prompt),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      // result is now a structured OracleResult object (or fallback with fallback_text)
       setOracleResult(result);
+
+      // Fetch TMDB data for each recommended movie
+      if (result.movies && result.movies.length > 0) {
+        try {
+          const moviePromises = result.movies.map(async (rec) => {
+            try {
+              if (rec.tmdb_id && rec.tmdb_id > 0) {
+                // Fetch by TMDB ID — most accurate
+                const movie = await fetchMovieById(rec.tmdb_id);
+                return movie as unknown as Movie;
+              } else {
+                // Fallback: search by title + year
+                const query = rec.year ? `${rec.title} ${rec.year}` : rec.title;
+                const results = await searchMovies(query);
+                const match = results.find(
+                  (r: any) => r.title?.toLowerCase().includes(rec.title.toLowerCase())
+                );
+                return match as unknown as Movie | undefined;
+              }
+            } catch {
+              return undefined;
+            }
+          });
+          const movies = await Promise.all(moviePromises);
+          setOracleMovies(movies.filter(Boolean) as Movie[]);
+        } catch {
+          // TMDB fetch failed — Oracle text will still be displayed
+        }
+      }
     },
     onError: (error: Error) => {
       const msg = error.message || '';
@@ -281,6 +314,7 @@ Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
     setIsOracleLoading(true);
     setShowExportModal(true);
     setOracleResult(null);
+    setOracleMovies([]);
 
     exportMutation.mutate(prompt);
   }, [isPro, ratings, onNavigateToPricing, exportMutation]);
@@ -334,6 +368,7 @@ Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
         setIsOracleLoading(true);
         setShowExportModal(true);
         setOracleResult(null);
+        setOracleMovies([]);
         exportMutation.mutate(prompt);
       } else {
         await navigator.clipboard.writeText(prompt);
@@ -354,6 +389,7 @@ Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
     showExportModal,
     setShowExportModal,
     oracleResult,
+    oracleMovies,
     isOracleLoading,
     ratingAnimation,
     selectedFriends,

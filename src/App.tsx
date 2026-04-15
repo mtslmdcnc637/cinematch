@@ -82,7 +82,7 @@ export default function App() {
     ratings, setRatings, watchlist, setWatchlist,
     editingMovie, setEditingMovie,
     showExportModal, setShowExportModal,
-    oracleResult, isOracleLoading,
+    oracleResult, oracleMovies, isOracleLoading,
     ratingAnimation, selectedFriends, setSelectedFriends,
     saveRating, addToWatchlist, removeFromWatchlist,
     handleShare, handleExportForAI, handleGroupExportForAI,
@@ -210,6 +210,7 @@ export default function App() {
           show={showExportModal}
           onClose={() => setShowExportModal(false)}
           result={oracleResult}
+          movies={oracleMovies}
           isLoading={isOracleLoading}
         />
       </ErrorBoundary>
@@ -246,6 +247,7 @@ export default function App() {
               onSignOut={handleSignOut}
               handleExportForAI={handleExportForAI}
               oracleResult={oracleResult}
+              oracleMovies={oracleMovies}
               isOracleLoading={isOracleLoading}
               showExportModal={showExportModal}
               setShowExportModal={setShowExportModal}
@@ -375,6 +377,7 @@ export default function App() {
                   onSignOut={handleSignOut}
                   handleExportForAI={handleExportForAI}
                   oracleResult={oracleResult}
+                  oracleMovies={oracleMovies}
                   isOracleLoading={isOracleLoading}
                   showExportModal={showExportModal}
                   setShowExportModal={setShowExportModal}

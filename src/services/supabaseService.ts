@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
-import { Movie, Rating } from '../types';
+import { Movie, Rating, type OracleResult } from '../types';
 
 export const supabaseService = {
   // Auth
@@ -340,7 +340,7 @@ export const supabaseService = {
   // conflicts when invokeEdgeFunction also tries to refresh.
   askOracle: async (prompt: string) => {
     if (!supabase) throw new Error("Supabase client not initialized");
-    const data = await invokeEdgeFunction<{ result: string }>('oracle', { prompt });
+    const data = await invokeEdgeFunction<{ result: OracleResult }>('oracle', { prompt });
     return data.result;
   },
 

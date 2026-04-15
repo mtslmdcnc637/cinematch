@@ -89,7 +89,7 @@ serve(async (req) => {
       throw new Error('OPENROUTER_API_KEY is not configured in Supabase Edge Functions')
     }
 
-    // Use deepseek-chat-v3 via OpenRouter - cheap, recent, good film knowledge
+    // Use deepseek-chat-v3 via OpenRouter — cheap, recent, good film knowledge
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -103,13 +103,36 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Você é o Oráculo do MrCine, um especialista em cinema altamente sofisticado. Sua missão é recomendar exatamente 3 filmes com base no gosto do usuário. Para cada filme, forneça: 1. O Título (Ano). 2. Onde assistir (se souber). 3. Uma justificativa de 2 linhas de por que o filme é um "Match Perfeito" para o usuário. Seja direto, empolgante e não use formatação excessiva. Responda sempre em português brasileiro.'
+            content: `Você é o Oráculo do MrCine, um especialista em cinema altamente sofisticado.
+Sua missão é recomendar exatamente 3 filmes com base no gosto do usuário.
+
+IMPORTANTE: Você DEVE responder EXCLUSIVAMENTE com um JSON válido, sem nenhum texto adicional antes ou depois. O JSON deve seguir exatamente esta estrutura:
+{
+  "summary": "Um parágrafo curto (2-3 frases) resumindo a análise do perfil e as recomendações",
+  "movies": [
+    {
+      "title": "Nome do Filme",
+      "year": 2024,
+      "tmdb_id": 12345,
+      "reason": "Uma justificativa de 1-2 frases de por que este filme é perfeito para o usuário"
+    }
+  ]
+}
+
+Regras:
+1. O campo "tmdb_id" é OBRIGATÓRIO e deve ser o ID numérico real do filme no The Movie Database (TMDB).
+2. Não invente TMDB IDs — use apenas IDs que você tem certeza que estão corretos.
+3. Se não souber o TMDB ID de um filme, coloque 0 (zero) e o título será usado para busca.
+4. Responda sempre em português brasileiro.
+5. O "reason" deve ser empolgante e personalizado.
+6. Retorne APENAS o JSON, sem markdown, sem \`\`\`, sem explicação.`
           },
           {
             role: 'user',
             content: prompt
           }
         ],
+        temperature: 0.7,
       }),
     })
 
@@ -119,8 +142,25 @@ serve(async (req) => {
       throw new Error(data.error?.message || 'Failed to fetch from OpenRouter')
     }
 
+    const rawContent = data.choices[0].message.content.trim()
+
+    // Try to parse as JSON (handle possible markdown code blocks)
+    let parsed
+    try {
+      // Remove potential markdown code block wrappers
+      const cleaned = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '')
+      parsed = JSON.parse(cleaned)
+    } catch {
+      // If JSON parsing fails, wrap the plain text as a fallback
+      parsed = {
+        summary: '',
+        movies: [],
+        fallback_text: rawContent
+      }
+    }
+
     return new Response(
-      JSON.stringify({ result: data.choices[0].message.content }),
+      JSON.stringify({ result: parsed }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
