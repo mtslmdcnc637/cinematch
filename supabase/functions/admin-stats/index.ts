@@ -6,8 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Admin password must match the one set in the frontend DashboardPage
-const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD") || "mrcine2026"
+// Admin password must match the one set in the environment.
+// NEVER use a hardcoded fallback — this is a security-critical endpoint.
+const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD")
+if (!ADMIN_PASSWORD) {
+  console.error("ADMIN_PASSWORD environment variable is not configured")
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -18,7 +22,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}))
 
     // Require admin password to prevent unauthorized access
-    if (body.admin_password !== ADMIN_PASSWORD) {
+    if (!ADMIN_PASSWORD || body.admin_password !== ADMIN_PASSWORD) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }

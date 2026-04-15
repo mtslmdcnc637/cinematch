@@ -221,7 +221,6 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">{result.username || 'Usuário'}</p>
-                        <p className="text-xs text-gray-500 truncate">{result.email || ''}</p>
                       </div>
                       <button
                         onClick={() => handleSendRequest(result.id)}

@@ -183,10 +183,13 @@ export const supabaseService = {
   // Friends
   searchUsers: async (query: string) => {
     if (!supabase) return [];
+    // SECURITY: Escape % and _ wildcards to prevent information disclosure
+    const sanitized = query.replace(/%/g, '\\%').replace(/_/g, '\\_');
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, avatar_url, email')
-      .or(`username.ilike.%${query}%,email.ilike.%${query}%`)
+      // SECURITY: Only return non-sensitive fields (removed email to prevent LGPD violation)
+      .select('id, username, avatar_url')
+      .or(`username.ilike.%${sanitized}%`)
       .limit(10);
     if (error) throw error;
     return data;
@@ -289,12 +292,14 @@ export const supabaseService = {
     return data;
   },
 
-  markNotificationAsRead: async (notificationId: string) => {
+  markNotificationAsRead: async (userId: string, notificationId: string) => {
     if (!supabase) return;
+    // SECURITY: Always include user_id filter to prevent marking other users' notifications
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', notificationId);
+      .eq('id', notificationId)
+      .eq('user_id', userId);
     if (error) throw error;
   },
 

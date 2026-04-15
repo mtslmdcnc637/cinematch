@@ -61,6 +61,25 @@ serve(async (req) => {
     )
   }
 
+  // SECURITY: Verify user has an active PRO subscription before consuming API credits
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (supabaseServiceKey) {
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey)
+    const { data: sub } = await adminClient
+      .from('subscriptions')
+      .select('status')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (!sub) {
+      return new Response(
+        JSON.stringify({ error: 'Assinatura PRO requerida para usar o Oráculo. Assine em mrcine.pro/pricing' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      )
+    }
+  }
+
   try {
     const { prompt } = await req.json()
 

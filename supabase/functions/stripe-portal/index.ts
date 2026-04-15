@@ -62,37 +62,32 @@ serve(async (req) => {
       )
     }
 
-    const { customer_id, user_id, return_url } = await req.json()
+    const { user_id, return_url } = await req.json();
 
-    // Ensure the authenticated user is the one accessing the portal
-    if (user_id && authUser.id !== user_id) {
+    // SECURITY: user_id is REQUIRED and must match the authenticated user.
+    // Never accept a raw customer_id from the request body — always
+    // look it up server-side from the authenticated user's subscription.
+    if (!user_id || authUser.id !== user_id) {
       return new Response(
-        JSON.stringify({ error: "User ID mismatch" }),
+        JSON.stringify({ error: "Unauthorized" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
       )
     }
 
-    // ── Resolve Stripe customer id ───────────────────────────────────
-    let stripeCustomerId = customer_id as string | undefined
+    // ── Resolve Stripe customer id from user_id only ─────────────────
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     if (!supabaseServiceKey) {
       throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured")
     }
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    if (!stripeCustomerId && user_id) {
-      const { data, error } = await supabase
-        .from("subscriptions")
-        .select("stripe_customer_id")
-        .eq("user_id", user_id)
-        .maybeSingle()
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("stripe_customer_id")
+      .eq("user_id", user_id)
+      .maybeSingle()
 
-      if (error) {
-        throw new Error(`Failed to look up customer: ${error.message}`)
-      }
-
-      stripeCustomerId = data?.stripe_customer_id
-    }
+    const stripeCustomerId = data?.stripe_customer_id as string | undefined
 
     if (!stripeCustomerId) {
       return new Response(

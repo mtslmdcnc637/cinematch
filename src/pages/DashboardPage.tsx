@@ -56,12 +56,11 @@ export default function DashboardPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
 
   // Check if already authenticated (session storage)
+  // SECURITY: Never store the admin password client-side.
+  // Only store an auth flag — the password must be re-entered if the session expires.
   useEffect(() => {
     if (sessionStorage.getItem('cm_admin') === 'true') {
       setIsAuthed(true);
-      // Restore password from session for subsequent API calls
-      const savedPw = sessionStorage.getItem('cm_admin_pw');
-      if (savedPw) setPassword(savedPw);
     }
   }, []);
 
@@ -72,6 +71,15 @@ export default function DashboardPage() {
   }, [isAuthed]);
 
   const loadAllData = async () => {
+    // SECURITY: Password must be available for each API call.
+    // If it's not set, force re-authentication.
+    if (!password) {
+      setIsAuthed(false);
+      sessionStorage.removeItem('cm_admin');
+      setPassword('');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const data = await invokeEdgeFunction<{
@@ -84,7 +92,11 @@ export default function DashboardPage() {
       setQuizResponses(data.quiz_responses || []);
       setSubscriptions(data.subscriptions || []);
     } catch (err) {
-      toast.error('Erro ao carregar dados');
+      toast.error('Erro ao carregar dados. Verifique sua senha.');
+      // If auth fails, force re-authentication
+      setIsAuthed(false);
+      sessionStorage.removeItem('cm_admin');
+      setPassword('');
     } finally {
       setIsLoading(false);
     }
@@ -95,8 +107,8 @@ export default function DashboardPage() {
     try {
       await invokeEdgeFunction('admin-stats', { admin_password: password });
       setIsAuthed(true);
+      // SECURITY: Only store auth flag, NEVER the password
       sessionStorage.setItem('cm_admin', 'true');
-      sessionStorage.setItem('cm_admin_pw', password);
     } catch {
       toast.error('Senha incorreta');
     }
@@ -105,7 +117,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     setIsAuthed(false);
     sessionStorage.removeItem('cm_admin');
-    sessionStorage.removeItem('cm_admin_pw');
+    // SECURITY: Never store cm_admin_pw
     setPassword('');
   };
 
@@ -171,6 +183,7 @@ export default function DashboardPage() {
             </div>
             <h1 className="text-2xl font-bold mb-2">Dashboard Admin</h1>
             <p className="text-gray-400 text-sm">Insira a senha de administrador para acessar</p>
+            <p className="text-gray-600 text-xs mt-1">A senha é solicitada a cada carregamento da página</p>
           </div>
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
             <div className="relative mb-4">
