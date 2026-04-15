@@ -76,7 +76,7 @@ interface UseProfileReturn {
 
 export function useProfile({ user }: UseProfileParams): UseProfileReturn {
   const [userProfile, setUserProfile] = useState<UserProfile>({ xp: 0, level: 1 });
-  const [currentPage, setCurrentPage] = useState('onboarding');
+  const [currentPage, setCurrentPage] = useState('feed');
   // Track whether the initial page has been set after login,
   // to prevent loadUserData from overriding the user's current page.
   const hasSetInitialPageRef = useRef(false);
@@ -123,14 +123,24 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
             setUserProfile(profile);
             if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
               setSelectedGenres(profile.selectedGenres);
-              // Only set the initial page on first load — don't override
-              // if the user has already navigated (e.g. to daily_tip).
+              // User already has genres — ensure they're on feed, not onboarding
               if (!hasSetInitialPageRef.current) {
                 setCurrentPage('feed');
                 hasSetInitialPageRef.current = true;
               }
+            } else {
+              // New user without genres — send to onboarding to select genres
+              if (!hasSetInitialPageRef.current) {
+                setCurrentPage('onboarding');
+                hasSetInitialPageRef.current = true;
+              }
             }
           } else {
+            // No profile exists yet — new user, go to onboarding
+            if (!hasSetInitialPageRef.current) {
+              setCurrentPage('onboarding');
+              hasSetInitialPageRef.current = true;
+            }
             setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
           }
           setIsInitialLoading(false);

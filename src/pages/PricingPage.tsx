@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Star, ShieldCheck, Lock, ArrowLeft, Crown, PartyPopper } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, ArrowLeft, Crown, PartyPopper, Settings, CreditCard, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast, Toaster } from 'sonner';
@@ -12,17 +12,14 @@ export default function PricingPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const { refreshSubscription } = useSubscription();
+  const { refreshSubscription, isPro, planType } = useSubscription();
 
   // Handle Stripe redirect back
   useEffect(() => {
     if (searchParams.get('success') === 'true') {
       setShowSuccess(true);
-      // Refresh subscription data from DB (webhook may have already updated it)
       refreshSubscription();
-      // Clean URL without reloading
       setSearchParams({}, { replace: true });
-      // Auto-redirect to home after 5 seconds
       const timer = setTimeout(() => navigate('/'), 5000);
       return () => clearTimeout(timer);
     } else if (searchParams.get('canceled') === 'true') {
@@ -35,32 +32,49 @@ export default function PricingPage() {
     setIsLoading(planId);
 
     try {
-      // Get current session
-      const { data: { session } } = await supabase.auth.getSession();
+      // Force-refresh session before calling edge function
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-      if (!session) {
+      if (sessionError || !session) {
+        // Try refreshing the session
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          toast.error('Sua sessão expirou. Faça login novamente.', { duration: 5000 });
+          navigate('/login?redirect=/pricing');
+          setIsLoading(null);
+          return;
+        }
+      }
+
+      // Get fresh session after potential refresh
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      if (!freshSession) {
         toast.error('Faça login ou crie uma conta primeiro para assinar.', { duration: 5000 });
         navigate('/login?redirect=/pricing');
         setIsLoading(null);
         return;
       }
 
-      // Call Stripe Checkout Edge Function via direct fetch for reliable auth
       const data = await invokeEdgeFunction<{ url?: string }>('stripe-checkout', {
         plan_id: planId,
-        user_id: session.user.id,
-        user_email: session.user.email,
+        user_id: freshSession.user.id,
+        user_email: freshSession.user.email,
       });
 
       if (data?.url) {
-        // Redirect to Stripe Checkout
         window.location.href = data.url;
       } else {
         throw new Error('URL de checkout não retornada');
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao processar assinatura';
-      toast.error(message);
+      // Don't show raw 401 errors to user
+      if (message.includes('401') || message.includes('Authentication failed')) {
+        toast.error('Sessão expirada. Faça login novamente.', { duration: 5000 });
+        navigate('/login?redirect=/pricing');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsLoading(null);
     }
@@ -70,8 +84,21 @@ export default function PricingPage() {
     setIsLoading('portal');
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      // Force-refresh session before calling edge function
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshData.session) {
+          toast.error('Sua sessão expirou. Faça login novamente.', { duration: 5000 });
+          navigate('/login?redirect=/pricing');
+          setIsLoading(null);
+          return;
+        }
+      }
+
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      if (!freshSession) {
         toast.error('Faça login primeiro.', { duration: 5000 });
         navigate('/login?redirect=/pricing');
         setIsLoading(null);
@@ -79,7 +106,7 @@ export default function PricingPage() {
       }
 
       const data = await invokeEdgeFunction<{ url?: string }>('stripe-portal', {
-        user_id: session.user.id,
+        user_id: freshSession.user.id,
       });
 
       if (data?.url) {
@@ -87,7 +114,12 @@ export default function PricingPage() {
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao gerenciar assinatura';
-      toast.error(message);
+      if (message.includes('401') || message.includes('Authentication failed')) {
+        toast.error('Sessão expirada. Faça login novamente.', { duration: 5000 });
+        navigate('/login?redirect=/pricing');
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsLoading(null);
     }
@@ -128,7 +160,41 @@ export default function PricingPage() {
               Começar a usar 🍿
             </button>
           </div>
+        ) : isPro ? (
+          /* ── Already PRO: show management card instead of pricing ── */
+          <div className="mt-8 max-w-lg mx-auto text-center">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 text-amber-400 text-sm font-medium mb-6 border border-amber-500/20">
+              <Crown className="w-4 h-4 fill-current" />
+              Assinatura Ativa
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-900/30 to-fuchsia-900/20 border border-purple-500/30 rounded-3xl p-8 mb-8">
+              <div className="w-20 h-20 mx-auto rounded-full bg-gradient-to-br from-amber-500 to-yellow-400 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(245,158,11,0.3)]">
+                <Crown className="w-10 h-10 text-black" />
+              </div>
+              <h2 className="text-3xl font-bold mb-2">MrCine PRO</h2>
+              <p className="text-purple-300 text-lg font-medium mb-4">
+                Plano {planType === 'monthly' ? 'Mensal' : planType === 'quarterly' ? 'Trimestral' : planType === 'annual' ? 'Anual' : 'PRO'}
+              </p>
+              <p className="text-gray-400 mb-8">
+                Você tem acesso completo a todos os recursos: swipes ilimitados, dicas infinitas e o Oráculo de IA.
+              </p>
+
+              <button
+                onClick={handleManageSubscription}
+                disabled={isLoading === 'portal'}
+                className="bg-white/10 hover:bg-white/20 text-white font-bold py-4 px-8 rounded-xl transition-all flex items-center justify-center gap-3 mx-auto border border-white/10 disabled:opacity-50"
+              >
+                <Settings className="w-5 h-5" />
+                {isLoading === 'portal' ? 'Carregando...' : 'Gerenciar Assinatura'}
+              </button>
+              <p className="text-gray-600 text-xs mt-3">
+                Altere seu plano, atualize pagamento ou cancele
+              </p>
+            </div>
+          </div>
         ) : (
+          /* ── Free user: show pricing cards ── */
           <>
             <div className="text-center mb-16">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 text-purple-400 text-sm font-medium mb-6 border border-purple-500/20">
@@ -219,12 +285,12 @@ export default function PricingPage() {
             <div className="max-w-2xl mx-auto bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6">
               <ShieldCheck className="w-12 h-12 text-green-400 shrink-0" />
               <div>
-                <h4 className="font-bold text-lg mb-2">Garantia de 7 Dia</h4>
+                <h4 className="font-bold text-lg mb-2">Garantia de 7 Dias</h4>
                 <p className="text-gray-400 text-sm mb-4">
                   Se você não sentir que economizou tempo e encontrou filmes melhores na primeira semana, devolvemos 100% do seu dinheiro. Sem perguntas.
                 </p>
                 <div className="flex items-center gap-2 text-gray-500 text-sm">
-                  <Lock className="w-4 h-4" /> Pagamento 100% Seguro via Stripe
+                  <CreditCard className="w-4 h-4" /> Pagamento 100% Seguro via Stripe
                 </div>
               </div>
             </div>

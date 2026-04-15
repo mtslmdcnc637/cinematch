@@ -40,7 +40,12 @@ async function getFreshToken(): Promise<string> {
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
   if (sessionError || !session) {
-    throw new Error('No active session — user must be logged in');
+    // No session at all — try refreshing once before giving up
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshData.session) {
+      throw new Error('No active session — user must be logged in');
+    }
+    return refreshData.session.access_token;
   }
 
   // Check if token is expired or about to expire (within 60 seconds)
@@ -54,7 +59,6 @@ async function getFreshToken(): Promise<string> {
       // Token is expired or about to expire — refresh it
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       if (refreshError || !refreshData.session) {
-        // Can't refresh — throw but do NOT sign out
         throw new Error('Session expired and could not be refreshed');
       }
       return refreshData.session.access_token;

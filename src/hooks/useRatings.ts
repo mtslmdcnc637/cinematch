@@ -82,7 +82,13 @@ export function useRatings({
       setOracleResult(result);
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      const msg = error.message || '';
+      // Don't show raw 401 errors — provide friendlier message
+      if (msg.includes('401') || msg.includes('Authentication failed') || msg.includes('No active session')) {
+        toast.error('Sessão expirada. Faça login novamente para usar o Oráculo.', { duration: 5000 });
+      } else {
+        toast.error(msg);
+      }
       setShowExportModal(false);
     },
     onSettled: () => {

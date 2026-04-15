@@ -129,12 +129,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </div>
           )}
 
-          {/* Camera overlay button */}
+          {/* Camera overlay button — positioned to not overlap PRO badge */}
           {user && (
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploadingAvatar}
-              className="absolute bottom-1 right-1 w-9 h-9 bg-purple-600 hover:bg-purple-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors border-2 border-[#030303] disabled:opacity-50 z-10"
+              className={`absolute w-9 h-9 bg-purple-600 hover:bg-purple-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors border-2 border-[#030303] disabled:opacity-50 z-20 ${
+                isPro ? 'bottom-3 right-0' : 'bottom-1 right-1'
+              }`}
               title="Alterar avatar"
             >
               {isUploadingAvatar ? (
