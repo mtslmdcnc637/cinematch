@@ -83,11 +83,16 @@ export function useRatings({
     },
     onError: (error: Error) => {
       const msg = error.message || '';
+      console.error('[Oracle] Error:', msg);
       // Don't show raw 401 errors — provide friendlier message
-      if (msg.includes('401') || msg.includes('Authentication failed') || msg.includes('No active session')) {
-        toast.error('Sessão expirada. Faça login novamente para usar o Oráculo.', { duration: 5000 });
+      if (msg.includes('401') || msg.includes('Authentication failed') || msg.includes('No active session') || msg.includes('Session expired')) {
+        toast.error('Sessão expirada. Faça login novamente para usar o Oráculo.', { duration: 6000 });
+      } else if (msg.includes('Limite de consultas') || msg.includes('429')) {
+        toast.error('Limite de consultas atingido. Aguarde alguns minutos e tente novamente.', { duration: 6000 });
+      } else if (msg.includes('OPENROUTER_API_KEY') || msg.includes('not configured')) {
+        toast.error('Serviço de IA temporariamente indisponível. Tente novamente mais tarde.', { duration: 6000 });
       } else {
-        toast.error(msg);
+        toast.error(`Erro ao consultar o Oráculo: ${msg}`, { duration: 6000 });
       }
       setShowExportModal(false);
     },
