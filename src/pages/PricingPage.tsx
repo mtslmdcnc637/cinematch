@@ -32,33 +32,21 @@ export default function PricingPage() {
     setIsLoading(planId);
 
     try {
-      // Force-refresh session before calling edge function
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      // Get user identity from current session.
+      // invokeEdgeFunction handles token refresh internally (getFreshToken + retry on 401),
+      // so we do NOT call refreshSession() here to avoid refresh-token rotation conflicts.
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (sessionError || !session) {
-        // Try refreshing the session
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          toast.error('Sua sessão expirou. Faça login novamente.', { duration: 5000 });
-          navigate('/login?redirect=/pricing');
-          setIsLoading(null);
-          return;
-        }
-      }
-
-      // Get fresh session after potential refresh
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      if (!freshSession) {
+      if (!session) {
         toast.error('Faça login ou crie uma conta primeiro para assinar.', { duration: 5000 });
         navigate('/login?redirect=/pricing');
-        setIsLoading(null);
         return;
       }
 
       const data = await invokeEdgeFunction<{ url?: string }>('stripe-checkout', {
         plan_id: planId,
-        user_id: freshSession.user.id,
-        user_email: freshSession.user.email,
+        user_id: session.user.id,
+        user_email: session.user.email,
       });
 
       if (data?.url) {
@@ -70,7 +58,6 @@ export default function PricingPage() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao processar assinatura';
       console.error('[handleSubscribe] Error:', message);
-      // Don't show raw 401 errors to user
       if (message.includes('401') || message.includes('Authentication failed') || message.includes('Session expired')) {
         toast.error('Sessão expirada. Faça login novamente.', { duration: 6000 });
         navigate('/login?redirect=/pricing');
@@ -86,29 +73,17 @@ export default function PricingPage() {
     setIsLoading('portal');
 
     try {
-      // Force-refresh session before calling edge function
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-      if (sessionError || !session) {
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError || !refreshData.session) {
-          toast.error('Sua sessão expirou. Faça login novamente.', { duration: 6000 });
-          navigate('/login?redirect=/pricing');
-          setIsLoading(null);
-          return;
-        }
-      }
-
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      if (!freshSession) {
+      // Get user identity from current session.
+      // invokeEdgeFunction handles token refresh internally.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         toast.error('Faça login primeiro.', { duration: 6000 });
         navigate('/login?redirect=/pricing');
-        setIsLoading(null);
         return;
       }
 
       const data = await invokeEdgeFunction<{ url?: string }>('stripe-portal', {
-        user_id: freshSession.user.id,
+        user_id: session.user.id,
         return_url: `${window.location.origin}/pricing`,
       });
 
@@ -117,7 +92,6 @@ export default function PricingPage() {
       if (data?.url) {
         window.location.href = data.url;
       } else {
-        // Edge function returned successfully but no URL — this is unexpected
         console.error('[handleManageSubscription] No URL returned from stripe-portal');
         toast.error('Não foi possível abrir o portal de assinatura. Tente novamente em alguns instantes.', { duration: 6000 });
       }
@@ -127,7 +101,7 @@ export default function PricingPage() {
       if (message.includes('401') || message.includes('Authentication failed') || message.includes('Session expired')) {
         toast.error('Sessão expirada. Faça login novamente.', { duration: 6000 });
         navigate('/login?redirect=/pricing');
-      } else if (message.includes('No Stripe customer') || message.includes('404')) {
+      } else if (message.includes('No Stripe customer') || message.includes('404') || message.includes('No Stripe customer found')) {
         toast.error('Nenhuma assinatura ativa encontrada. Verifique seu status.', { duration: 6000 });
         refreshSubscription();
       } else {

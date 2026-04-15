@@ -335,23 +335,11 @@ export const supabaseService = {
   },
 
   // Oracle AI (via Edge Function)
-  // Force-refreshes the session before calling to avoid 401 errors.
-  // This is necessary because edge function calls use raw fetch() and
-  // don't benefit from Supabase's autoRefreshToken mechanism.
+  // Token refresh is handled internally by invokeEdgeFunction (getFreshToken + retry on 401).
+  // We intentionally do NOT call refreshSession() here to avoid refresh-token rotation
+  // conflicts when invokeEdgeFunction also tries to refresh.
   askOracle: async (prompt: string) => {
     if (!supabase) throw new Error("Supabase client not initialized");
-
-    // Force a session refresh before calling the oracle to ensure token freshness
-    try {
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.warn('[askOracle] Pre-call session refresh failed:', refreshError.message);
-        // Don't throw — invokeEdgeFunction will handle token refresh internally
-      }
-    } catch {
-      // Ignore refresh errors — invokeEdgeFunction has its own retry logic
-    }
-
     const data = await invokeEdgeFunction<{ result: string }>('oracle', { prompt });
     return data.result;
   },
@@ -406,18 +394,12 @@ export const supabaseService = {
   },
 
   // Stripe integration
+  // Token refresh is handled internally by invokeEdgeFunction.
+  // getSession() is safe to call without refresh — user identity (id, email)
+  // is stable even when the access_token is expired; invokeEdgeFunction will
+  // attach a fresh JWT via the Authorization header.
   createCheckoutSession: async (planId: string) => {
     if (!supabase) throw new Error('Supabase not initialized');
-
-    // Force-refresh session to avoid 401 on edge function
-    try {
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.warn('[createCheckoutSession] Pre-call session refresh failed:', refreshError.message);
-      }
-    } catch {
-      // Ignore — invokeEdgeFunction will handle token refresh internally
-    }
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');
@@ -432,16 +414,6 @@ export const supabaseService = {
 
   createPortalSession: async () => {
     if (!supabase) throw new Error('Supabase not initialized');
-
-    // Force-refresh session to avoid 401 on edge function
-    try {
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.warn('[createPortalSession] Pre-call session refresh failed:', refreshError.message);
-      }
-    } catch {
-      // Ignore — invokeEdgeFunction will handle token refresh internally
-    }
 
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error('Not authenticated');

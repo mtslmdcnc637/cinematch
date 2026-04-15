@@ -36,7 +36,7 @@ const PUBLIC_FUNCTIONS = new Set(['tmdb-proxy']);
  *
  * 1. Call getSession() to get the current session.
  * 2. Parse the JWT to check expiry.
- * 3. If expired or about to expire (within 60s), call refreshSession().
+ * 3. If expired or about to expire (within 10min buffer), call refreshSession().
  * 4. Never calls signOut() — just throws if refresh fails.
  */
 async function getFreshToken(): Promise<string> {
@@ -53,16 +53,16 @@ async function getFreshToken(): Promise<string> {
     return refreshData.session.access_token;
   }
 
-  // Check if token is expired or about to expire (within 5 minutes buffer).
+  // Check if token is expired or about to expire (within 10 minutes buffer).
   // We use a generous buffer because:
   // 1. Edge function calls use raw fetch() — autoRefreshToken doesn't kick in.
-  // 2. Clock skew between client and Supabase servers.
+  // 2. Clock skew between client and Supabase servers (verify_jwt checks server-side).
   // 3. Network latency before the token reaches the Supabase gateway.
   try {
     const payload = JSON.parse(atob(session.access_token.split('.')[1]));
     const expiresAt = payload.exp * 1000; // ms
     const now = Date.now();
-    const buffer = 5 * 60 * 1000; // 5 minutes
+    const buffer = 10 * 60 * 1000; // 10 minutes (increased from 5 to avoid clock-skew rejections)
 
     if (expiresAt - now < buffer) {
       // Token is expired or about to expire — refresh it
