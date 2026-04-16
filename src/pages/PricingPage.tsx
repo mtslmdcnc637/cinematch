@@ -32,15 +32,13 @@ export default function PricingPage() {
     setIsLoading(planId);
 
     try {
-      // Get user identity from current session.
-      // invokeEdgeFunction handles token refresh internally (getFreshToken + retry on 401),
-      // so we do NOT call refreshSession() here to avoid refresh-token rotation conflicts.
-      const result = await supabase?.auth.getSession();
-      const session = result?.data?.session;
-
+      // invokeEdgeFunction handles token refresh internally (getFreshToken + retry on 401)
+      // via a mutex that prevents concurrent refresh calls.
+      // We need the session to get user identity for the edge function.
+      const sessionResult = supabase ? await supabase.auth.getSession() : null;
+      const session = sessionResult?.data?.session;
       if (!session) {
         toast.error('Faça login ou crie uma conta primeiro para assinar.', { duration: 5000 });
-        navigate('/login?redirect=/pricing');
         return;
       }
 
@@ -59,9 +57,16 @@ export default function PricingPage() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao processar assinatura';
       console.error('[handleSubscribe] Error:', message);
-      if (message.includes('401') || message.includes('Authentication failed') || message.includes('Session expired')) {
+      if (message.includes('401') || message.includes('Authentication failed') || message.includes('No active session')) {
+        // Try a session refresh before giving up
+        try {
+          const { data: refreshData } = await supabase?.auth.refreshSession() || {};
+          if (refreshData?.session) {
+            toast.info('Sessão atualizada. Tente novamente.', { duration: 3000 });
+            return;
+          }
+        } catch { /* refresh failed */ }
         toast.error('Sessão expirada. Faça login novamente.', { duration: 6000 });
-        navigate('/login?redirect=/pricing');
       } else {
         toast.error(message, { duration: 6000 });
       }
@@ -74,13 +79,14 @@ export default function PricingPage() {
     setIsLoading('portal');
 
     try {
-      // Get user identity from current session.
-      // invokeEdgeFunction handles token refresh internally.
-      const getSessionResult = await supabase?.auth.getSession();
-      const session = getSessionResult?.data?.session;
+      // invokeEdgeFunction handles token refresh internally via mutex.
+      // getSession() returns stable user identity (id, email) even when
+      // the access_token is expired — invokeEdgeFunction will attach a
+      // fresh JWT via the Authorization header.
+      const sessionResult = supabase ? await supabase.auth.getSession() : null;
+      const session = sessionResult?.data?.session;
       if (!session) {
         toast.error('Faça login primeiro.', { duration: 6000 });
-        navigate('/login?redirect=/pricing');
         return;
       }
 
@@ -100,9 +106,16 @@ export default function PricingPage() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Erro ao gerenciar assinatura';
       console.error('[handleManageSubscription] Error:', message);
-      if (message.includes('401') || message.includes('Authentication failed') || message.includes('Session expired')) {
+      if (message.includes('401') || message.includes('Authentication failed') || message.includes('No active session')) {
+        // Try a session refresh before giving up
+        try {
+          const { data: refreshData } = await supabase?.auth.refreshSession() || {};
+          if (refreshData?.session) {
+            toast.info('Sessão atualizada. Tente novamente.', { duration: 3000 });
+            return;
+          }
+        } catch { /* refresh failed */ }
         toast.error('Sessão expirada. Faça login novamente.', { duration: 6000 });
-        navigate('/login?redirect=/pricing');
       } else if (message.includes('No Stripe customer') || message.includes('404') || message.includes('No Stripe customer found')) {
         toast.error('Nenhuma assinatura ativa encontrada. Verifique seu status.', { duration: 6000 });
         refreshSubscription();
