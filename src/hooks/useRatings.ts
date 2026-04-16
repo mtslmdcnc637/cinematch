@@ -90,21 +90,62 @@ export function useRatings({
         try {
           const moviePromises = result.movies.map(async (rec) => {
             try {
+              // Strategy 1: Try TMDB ID first (most accurate)
               if (rec.tmdb_id && rec.tmdb_id > 0) {
-                // Fetch by TMDB ID — most accurate
-                const movie = await fetchMovieById(rec.tmdb_id);
-                return movie as unknown as Movie;
-              } else {
-                // Fallback: search by title + year
-                const query = rec.year ? `${rec.title} ${rec.year}` : rec.title;
-                const results = await searchMovies(query);
-                const match = results.find(
-                  (r: any) => r.title?.toLowerCase().includes(rec.title.toLowerCase())
-                );
-                return match as unknown as Movie | undefined;
+                const movie = await fetchMovieById(rec.tmdb_id) as any;
+                // Validate: ensure the returned movie title roughly matches
+                if (movie?.title) {
+                  const normalTitle = rec.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  const normalFetched = movie.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+                  if (normalFetched.includes(normalTitle) || normalTitle.includes(normalFetched)) {
+                    return movie as unknown as Movie;
+                  }
+                  // TMDB ID returned wrong movie — fall through to title search
+                  console.warn(`[Oracle] TMDB ID ${rec.tmdb_id} returned "${movie.title}" instead of "${rec.title}", falling back to title search`);
+                }
               }
+
+              // Strategy 2: Search by title + year (more reliable for older/foreign films)
+              const query = rec.year ? `${rec.title} ${rec.year}` : rec.title;
+              const results = await searchMovies(query);
+              const recTitle = rec.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const match = results.find((r: any) => {
+                const rTitle = r.title?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+                return rTitle.includes(recTitle) || recTitle.includes(rTitle);
+              });
+              if (match) return match as unknown as Movie;
+
+              // Strategy 3: Search by title only (without year, broader match)
+              if (rec.year) {
+                const broaderResults = await searchMovies(rec.title);
+                const broaderMatch = broaderResults.find((r: any) => {
+                  const rTitle = r.title?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+                  return rTitle.includes(recTitle) || recTitle.includes(rTitle);
+                });
+                if (broaderMatch) return broaderMatch as unknown as Movie;
+              }
+
+              // No TMDB match found — return a synthetic Movie from AI data
+              return {
+                id: rec.tmdb_id || 0,
+                title: rec.title,
+                poster_path: '',
+                release_date: rec.year ? `${rec.year}-01-01` : '',
+                genre_ids: [],
+                overview: rec.reason,
+                vote_average: 0,
+              } as Movie;
             } catch {
-              return undefined;
+              // TMDB fetch failed — return synthetic Movie from AI data
+              return {
+                id: rec.tmdb_id || 0,
+                title: rec.title,
+                poster_path: '',
+                release_date: rec.year ? `${rec.year}-01-01` : '',
+                genre_ids: [],
+                overview: rec.reason,
+                vote_average: 0,
+              } as Movie;
             }
           });
           const movies = await Promise.all(moviePromises);
