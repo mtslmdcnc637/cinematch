@@ -97,11 +97,15 @@ serve(async (req) => {
     }
 
     // ── Create a Billing Portal session ──────────────────────────────
-    const returnUrl = return_url || `${Deno.env.get("APP_URL") || "https://mrcine.pro"}/pricing`
+    // SECURITY: Validate return_url to prevent open redirect via Stripe
+    const appUrl = Deno.env.get("APP_URL") || "https://mrcine.pro"
+    const safeReturnUrl = (return_url && return_url.startsWith(appUrl))
+      ? return_url
+      : `${appUrl}/pricing`
 
     const session = await stripePost("/billing_portal/sessions", {
       customer: stripeCustomerId,
-      return_url: returnUrl,
+      return_url: safeReturnUrl,
     })
 
     if (session.error) {

@@ -100,7 +100,7 @@ export function useFriends({ user, currentPage }: UseFriendsParams): UseFriendsR
   const handleRespondRequest = useCallback(
     async (requestId: string, status: 'accepted' | 'declined') => {
       try {
-        await supabaseService.respondToFriendRequest(requestId, status);
+        await supabaseService.respondToFriendRequest(requestId, status, user!.id);
         setFriendRequests(prev => prev.filter(r => r.id !== requestId));
         if (status === 'accepted') {
           const newFriends = await supabaseService.getFriends(user!.id);

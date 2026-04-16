@@ -227,12 +227,14 @@ export const supabaseService = {
     return data;
   },
 
-  respondToFriendRequest: async (requestId: string, status: 'accepted' | 'declined') => {
+  // SECURITY: require userId to ensure only the intended recipient can respond
+  respondToFriendRequest: async (requestId: string, status: 'accepted' | 'declined', userId: string) => {
     if (!supabase) return;
     const { error } = await supabase
       .from('friends')
       .update({ status })
-      .eq('id', requestId);
+      .eq('id', requestId)
+      .eq('friend_id', userId); // Only the recipient can respond
     if (error) throw error;
   },
 

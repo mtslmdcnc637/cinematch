@@ -8,21 +8,31 @@ const corsHeaders = {
 const TMDB_API_BASE = "https://api.themoviedb.org/3"
 
 // Allowed TMDB endpoints (prevent arbitrary API calls)
+// SECURITY: Only allow specific read-only endpoints. The generic "movie/" pattern
+// is replaced with a regex that only allows movie/{numeric_id} and specific sub-paths.
 const ALLOWED_ENDPOINTS = [
   "movie/popular",
   "movie/now_playing",
   "movie/top_rated",
   "movie/upcoming",
-  "movie/",
   "search/movie",
   "discover/movie",
-  "trending/movie/",
+  "trending/movie/week",
+  "trending/movie/day",
   "genre/movie/list",
 ]
 
+// Regex for movie/{id} and movie/{id}/{sub-resource} (read-only)
+const MOVIE_ID_REGEX = /^movie\/\d+(?:\/videos|\/watch\/providers|\/similar|\/credits|\/reviews)?$/
+
 function isEndpointAllowed(endpoint: string): boolean {
   const clean = endpoint.startsWith("/") ? endpoint.slice(1) : endpoint
-  return ALLOWED_ENDPOINTS.some(allowed => clean.startsWith(allowed))
+  // Check explicit allowlist
+  if (ALLOWED_ENDPOINTS.some(allowed => clean === allowed || clean.startsWith(allowed + "?"))) {
+    return true
+  }
+  // Check movie/{id} pattern
+  return MOVIE_ID_REGEX.test(clean)
 }
 
 // Simple in-memory rate limiter per IP
@@ -90,9 +100,14 @@ serve(async (req) => {
     const sanitizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`
 
     // Build query string with api_key and optional params
+    // SECURITY: Delete api_key from user-supplied params to prevent override
+    const safeParams = { ...params }
+    delete safeParams.api_key
+    delete safeParams.api_key_local
+
     const queryParams: Record<string, string> = {
       api_key: apiKey,
-      ...params,
+      ...safeParams,
     }
 
     const queryString = Object.entries(queryParams)
