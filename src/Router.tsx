@@ -6,6 +6,7 @@ import PricingPage from './pages/PricingPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import DashboardPage from './pages/DashboardPage';
+import DicaPage from './pages/DicaPage';
 import { PublicProfilePage } from './components/profile/PublicProfilePage';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './lib/supabase';
@@ -56,6 +57,7 @@ export default function Router() {
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/dica" element={<DicaPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/u/:username" element={<PublicProfileRoute />} />
               <Route path="*" element={<Navigate to="/" replace />} />

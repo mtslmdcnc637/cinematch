@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2 } from 'lucide-react';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
+import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
 // Admin password is validated server-side only (admin-stats edge function).
@@ -42,7 +43,7 @@ interface SubscriptionRow {
   updated_at: string | null;
 }
 
-type TabId = 'overview' | 'funnel' | 'responses' | 'profiles';
+type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -54,6 +55,10 @@ export default function DashboardPage() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [quizResponses, setQuizResponses] = useState<QuizResponseRow[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
+
+  // Secret codes management
+  const [secretCodes, setSecretCodes] = useState<any[]>([]);
+  const [newCode, setNewCode] = useState({ code: '', title: '', description: '', movieIds: '' });
 
   // Check if already authenticated (session storage)
   // SECURITY: Never store the admin password client-side.
@@ -91,6 +96,9 @@ export default function DashboardPage() {
       setProfiles(data.profiles || []);
       setQuizResponses(data.quiz_responses || []);
       setSubscriptions(data.subscriptions || []);
+
+      // Load secret codes
+      loadSecretCodes();
     } catch (err) {
       toast.error('Erro ao carregar dados. Verifique sua senha.');
       // If auth fails, force re-authentication
@@ -119,6 +127,68 @@ export default function DashboardPage() {
     sessionStorage.removeItem('cm_admin');
     // SECURITY: Never store cm_admin_pw
     setPassword('');
+  };
+
+  // ─── Secret Codes CRUD ─────────────────────────────────────────────────
+  const loadSecretCodes = async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase
+      .from('secret_codes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (!error && data) setSecretCodes(data);
+  };
+
+  const handleCreateCode = async () => {
+    if (!supabase || !newCode.code || !newCode.title) {
+      toast.error('Código e título são obrigatórios');
+      return;
+    }
+    const movieIds = newCode.movieIds
+      .split(',')
+      .map(s => parseInt(s.trim()))
+      .filter(n => !isNaN(n));
+
+    const { error } = await supabase
+      .from('secret_codes')
+      .insert({
+        code: newCode.code.trim(),
+        title: newCode.title.trim(),
+        description: newCode.description.trim() || null,
+        movie_ids: movieIds,
+      });
+
+    if (error) {
+      toast.error(`Erro: ${error.message}`);
+    } else {
+      toast.success(`Código "${newCode.code}" criado!`);
+      setNewCode({ code: '', title: '', description: '', movieIds: '' });
+      loadSecretCodes();
+    }
+  };
+
+  const handleDeleteCode = async (id: string) => {
+    if (!supabase) return;
+    const { error } = await supabase.from('secret_codes').delete().eq('id', id);
+    if (error) {
+      toast.error(`Erro ao deletar: ${error.message}`);
+    } else {
+      toast.success('Código deletado');
+      loadSecretCodes();
+    }
+  };
+
+  const handleToggleCode = async (id: string, isActive: boolean) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('secret_codes')
+      .update({ is_active: !isActive, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) {
+      toast.error(`Erro: ${error.message}`);
+    } else {
+      loadSecretCodes();
+    }
   };
 
   // ─── Computed metrics ───
@@ -228,6 +298,7 @@ export default function DashboardPage() {
     { id: 'funnel', label: 'Funil', icon: TrendingUp },
     { id: 'responses', label: 'Respostas', icon: Mail },
     { id: 'profiles', label: 'Usuários', icon: Users },
+    { id: 'codes', label: 'Códigos', icon: Key },
   ];
 
   const funnelData = funnelSteps();
@@ -513,6 +584,119 @@ export default function DashboardPage() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Secret Codes Tab */}
+        {activeTab === 'codes' && (
+          <div className="space-y-6">
+            {/* Create new code */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                <Plus className="w-5 h-5 text-purple-400" />
+                Criar Novo Código
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Código *</label>
+                  <input
+                    type="text"
+                    value={newCode.code}
+                    onChange={e => setNewCode(prev => ({ ...prev, code: e.target.value }))}
+                    placeholder="ex: 99, HORROR2024, NATAL"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Título *</label>
+                  <input
+                    type="text"
+                    value={newCode.title}
+                    onChange={e => setNewCode(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="ex: 5 Filmes de Terror Secretos"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-400 mb-1">Descrição</label>
+                  <input
+                    type="text"
+                    value={newCode.description}
+                    onChange={e => setNewCode(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Descrição opcional que aparece no card"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-400 mb-1">IDs dos Filmes (TMDB) *</label>
+                  <input
+                    type="text"
+                    value={newCode.movieIds}
+                    onChange={e => setNewCode(prev => ({ ...prev, movieIds: e.target.value }))}
+                    placeholder="IDs separados por vírgula, ex: 574475, 414429, 447365"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                  />
+                  <p className="text-xs text-gray-600 mt-1">Encontre o ID no TMDB: themoviedb.org/movie/[ID]</p>
+                </div>
+              </div>
+              <button
+                onClick={handleCreateCode}
+                disabled={!newCode.code || !newCode.title}
+                className="mt-4 px-6 py-2 bg-purple-600 rounded-lg font-medium hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Criar Código
+              </button>
+            </div>
+
+            {/* Existing codes */}
+            <div>
+              <h3 className="font-bold text-lg mb-4">Códigos Cadastrados ({secretCodes.length})</h3>
+              {secretCodes.length === 0 ? (
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                  <Key className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                  <p className="text-gray-500">Nenhum código cadastrado ainda.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {secretCodes.map(sc => (
+                    <div key={sc.id} className={`bg-white/5 border rounded-xl p-4 flex items-start justify-between gap-4 ${sc.is_active ? 'border-white/10' : 'border-red-500/20 opacity-60'}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <code className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded text-sm font-mono">{sc.code}</code>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${sc.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                            {sc.is_active ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </div>
+                        <h4 className="font-medium">{sc.title}</h4>
+                        {sc.description && <p className="text-sm text-gray-400 mt-0.5">{sc.description}</p>}
+                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                          <Film className="w-3 h-3" />
+                          <span>{sc.movie_ids?.length || 0} filmes</span>
+                          {sc.movie_ids?.length > 0 && (
+                            <span className="text-gray-600">({sc.movie_ids.join(', ')})</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleToggleCode(sc.id, sc.is_active)}
+                          className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${sc.is_active ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20' : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'}`}
+                        >
+                          {sc.is_active ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button
+                          onClick={() => { if (confirm('Deletar este código?')) handleDeleteCode(sc.id); }}
+                          className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
