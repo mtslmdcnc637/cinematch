@@ -61,10 +61,12 @@ export default function DashboardPage() {
   const [newCode, setNewCode] = useState({ code: '', title: '', description: '', movieIds: '' });
 
   // Check if already authenticated (session storage)
-  // SECURITY: Never store the admin password client-side.
-  // Only store an auth flag — the password must be re-entered if the session expires.
+  // The password is stored in sessionStorage so the admin doesn't need to
+  // re-enter it on every page reload within the same browser session.
   useEffect(() => {
-    if (sessionStorage.getItem('cm_admin') === 'true') {
+    const savedPassword = sessionStorage.getItem('cm_admin_pw');
+    if (savedPassword && sessionStorage.getItem('cm_admin') === 'true') {
+      setPassword(savedPassword);
       setIsAuthed(true);
     }
   }, []);
@@ -115,8 +117,8 @@ export default function DashboardPage() {
     try {
       await invokeEdgeFunction('admin-stats', { admin_password: password });
       setIsAuthed(true);
-      // SECURITY: Only store auth flag, NEVER the password
       sessionStorage.setItem('cm_admin', 'true');
+      sessionStorage.setItem('cm_admin_pw', password);
     } catch {
       toast.error('Senha incorreta');
     }
@@ -125,7 +127,7 @@ export default function DashboardPage() {
   const handleLogout = () => {
     setIsAuthed(false);
     sessionStorage.removeItem('cm_admin');
-    // SECURITY: Never store cm_admin_pw
+    sessionStorage.removeItem('cm_admin_pw');
     setPassword('');
   };
 

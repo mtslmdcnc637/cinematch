@@ -4,13 +4,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-// Admin password must match the one set in the environment.
-// NEVER use a hardcoded fallback — this is a security-critical endpoint.
+// Admin password — stored as SHA-256 hash in env var ADMIN_PASSWORD_HASH
+// Falls back to plain text ADMIN_PASSWORD if hash not set
+const ADMIN_PASSWORD_HASH = Deno.env.get("ADMIN_PASSWORD_HASH")
 const ADMIN_PASSWORD = Deno.env.get("ADMIN_PASSWORD")
-if (!ADMIN_PASSWORD) {
-  console.error("ADMIN_PASSWORD environment variable is not configured")
+
+if (!ADMIN_PASSWORD_HASH && !ADMIN_PASSWORD) {
+  console.error("ADMIN_PASSWORD or ADMIN_PASSWORD_HASH environment variable must be configured")
+}
+
+// SHA-256 helper
+async function sha256(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 // SECURITY: Rate limit admin login attempts per IP
@@ -23,13 +34,11 @@ function isAdminRateLimited(ip: string): boolean {
   const now = Date.now()
   const attempts = adminAttempts.get(ip)?.filter(t => now - t < ADMIN_WINDOW_MS) || []
 
-  // Check if in lockout period (most recent attempt was within lockout window)
   if (attempts.length >= ADMIN_MAX_ATTEMPTS) {
     const lastAttempt = attempts[attempts.length - 1]
     if (now - lastAttempt < ADMIN_LOCKOUT_MS) {
-      return true // Still locked out
+      return true
     }
-    // Lockout expired, clear attempts
     adminAttempts.delete(ip)
     return false
   }
@@ -44,12 +53,11 @@ function recordAdminAttempt(ip: string): void {
   adminAttempts.set(ip, attempts)
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
 
-  // SECURITY: Enforce POST-only
   if (req.method !== "POST") {
     return new Response(
       JSON.stringify({ error: "Method not allowed" }),
@@ -60,7 +68,6 @@ serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}))
 
-    // SECURITY: Rate limit admin login attempts by IP
     const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown"
     if (isAdminRateLimited(clientIp)) {
       return new Response(
@@ -69,8 +76,20 @@ serve(async (req) => {
       )
     }
 
-    // Require admin password to prevent unauthorized access
-    if (!ADMIN_PASSWORD || body.admin_password !== ADMIN_PASSWORD) {
+    // Verify admin password — supports both hash and plain text
+    let isAuthenticated = false
+    const inputPassword = body.admin_password || ''
+
+    if (ADMIN_PASSWORD_HASH) {
+      // Compare SHA-256 hash of input with stored hash
+      const inputHash = await sha256(inputPassword)
+      isAuthenticated = inputHash === ADMIN_PASSWORD_HASH
+    } else if (ADMIN_PASSWORD) {
+      // Fallback to plain text comparison
+      isAuthenticated = inputPassword === ADMIN_PASSWORD
+    }
+
+    if (!isAuthenticated) {
       recordAdminAttempt(clientIp)
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -105,7 +124,6 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (error) {
-    // SECURITY: Don't leak internal error details
     console.error("admin-stats error:", error)
     return new Response(
       JSON.stringify({ error: "Internal server error" }),

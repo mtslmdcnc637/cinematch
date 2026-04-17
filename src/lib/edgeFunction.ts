@@ -34,8 +34,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 /**
  * Edge functions that have verify_jwt = false and don't need a user JWT.
  * The apikey (anon key) is sufficient for these.
+ * admin-stats uses its own admin_password auth, not JWT.
  */
-const PUBLIC_FUNCTIONS = new Set(['tmdb-proxy']);
+const PUBLIC_FUNCTIONS = new Set(['tmdb-proxy', 'admin-stats']);
 
 // ── Refresh Mutex ────────────────────────────────────────────────────────────
 // Prevents concurrent refreshSession() calls that would cause refresh-token
