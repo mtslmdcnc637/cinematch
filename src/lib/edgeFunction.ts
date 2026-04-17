@@ -177,7 +177,7 @@ export async function invokeEdgeFunction<T = unknown>(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `Edge function error: ${response.status}`);
+      throw new Error(`[HTTP ${response.status}] ${errorData.error || `Edge function error`}`);
     }
 
     return response.json() as Promise<T>;
@@ -239,11 +239,11 @@ export async function invokeEdgeFunction<T = unknown>(
             return fallbackResponse.json() as Promise<T>;
           }
           const fallbackError = await fallbackResponse.json().catch(() => ({}));
-          throw new Error(fallbackError.error || `Edge function error: ${fallbackResponse.status}`);
+          throw new Error(`[HTTP ${fallbackResponse.status}] ${fallbackError.error || `Edge function error`}`);
         }
 
         const errorData = await retryResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || `Edge function error: ${retryResponse.status}`);
+        throw new Error(`[HTTP ${retryResponse.status}] ${errorData.error || `Edge function error`}`);
       }
     } catch (e) {
       // Refresh failed — re-throw the error but do NOT sign out
@@ -255,7 +255,7 @@ export async function invokeEdgeFunction<T = unknown>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `Edge function error: ${response.status}`);
+    throw new Error(`[HTTP ${response.status}] ${errorData.error || `Edge function error`}`);
   }
 
   return response.json() as Promise<T>;

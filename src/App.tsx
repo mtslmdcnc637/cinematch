@@ -82,7 +82,7 @@ export default function App() {
     ratings, setRatings, watchlist, setWatchlist,
     editingMovie, setEditingMovie,
     showExportModal, setShowExportModal,
-    oracleResult, oracleMovies, isOracleLoading,
+    oracleResult, oracleMovies, isOracleLoading, oracleMode,
     ratingAnimation, selectedFriends, setSelectedFriends,
     saveRating, addToWatchlist, removeFromWatchlist,
     handleShare, handleExportForAI, handleGroupExportForAI,
@@ -212,6 +212,7 @@ export default function App() {
           result={oracleResult}
           movies={oracleMovies}
           isLoading={isOracleLoading}
+          mode={oracleMode}
         />
       </ErrorBoundary>
 

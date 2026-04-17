@@ -34,6 +34,8 @@ interface UseRatingsParams {
   friends: Friend[];
 }
 
+export type OracleMode = 'personal' | 'group';
+
 interface UseRatingsReturn {
   ratings: UserRating[];
   setRatings: Dispatch<SetStateAction<UserRating[]>>;
@@ -46,6 +48,7 @@ interface UseRatingsReturn {
   oracleResult: OracleResult | null;
   oracleMovies: Movie[];
   isOracleLoading: boolean;
+  oracleMode: OracleMode;
   ratingAnimation: RatingAnimation | null;
   selectedFriends: string[];
   setSelectedFriends: Dispatch<SetStateAction<string[]>>;
@@ -75,6 +78,7 @@ export function useRatings({
   const [oracleResult, setOracleResult] = useState<OracleResult | null>(null);
   const [oracleMovies, setOracleMovies] = useState<Movie[]>([]);
   const [isOracleLoading, setIsOracleLoading] = useState(false);
+  const [oracleMode, setOracleMode] = useState<OracleMode>('personal');
   const [ratingAnimation, setRatingAnimation] = useState<RatingAnimation | null>(null);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
 
@@ -158,15 +162,29 @@ export function useRatings({
     onError: (error: Error) => {
       const msg = error.message || '';
       console.error('[Oracle] Error:', msg);
-      // Don't show raw 401 errors — provide friendlier message
-      if (msg.includes('401') || msg.includes('Authentication failed') || msg.includes('No active session') || msg.includes('Session expired')) {
+
+      // Distinguish real auth failures (from refresh mechanism) from edge function errors
+      // invokeEdgeFunction prefixes edge function errors with [HTTP NNN]
+      // Auth failures from refresh mechanism do NOT have this prefix
+      const isAuthFailure = !msg.startsWith('[HTTP') && (
+        msg.includes('No active session') ||
+        msg.includes('Session expired and could not be refreshed') ||
+        msg.includes('Authentication failed — please log in again')
+      );
+      const httpStatus = msg.match(/^\[HTTP (\d+)\]/)?.[1];
+
+      if (isAuthFailure) {
         toast.error('Sessão expirada. Faça login novamente para usar o Oráculo.', { duration: 6000 });
-      } else if (msg.includes('Limite de consultas') || msg.includes('429')) {
+      } else if (httpStatus === '403') {
+        toast.error('Assinatura PRO necessária. Vá em Perfil → Assine PRO.', { duration: 6000 });
+      } else if (httpStatus === '429' || msg.includes('Limite de consultas')) {
         toast.error('Limite de consultas atingido. Aguarde alguns minutos e tente novamente.', { duration: 6000 });
       } else if (msg.includes('OPENROUTER_API_KEY') || msg.includes('not configured')) {
         toast.error('Serviço de IA temporariamente indisponível. Tente novamente mais tarde.', { duration: 6000 });
       } else {
-        toast.error(`Erro ao consultar o Oráculo: ${msg}`, { duration: 6000 });
+        // Extract clean message from [HTTP NNN] prefix
+        const cleanMsg = msg.replace(/^\[HTTP \d+\]\s*/, '');
+        toast.error(`Erro ao consultar o Oráculo: ${cleanMsg || msg}`, { duration: 6000 });
       }
       setShowExportModal(false);
     },
@@ -353,6 +371,7 @@ Não Gostei: ${exportData.nao_gostei.join(', ')}
 Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
 
     setIsOracleLoading(true);
+    setOracleMode('personal');
     setShowExportModal(true);
     setOracleResult(null);
     setOracleMovies([]);
@@ -407,6 +426,7 @@ Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
       // Call Oracle AI for PRO users, copy to clipboard for free users
       if (isPro) {
         setIsOracleLoading(true);
+        setOracleMode('group');
         setShowExportModal(true);
         setOracleResult(null);
         setOracleMovies([]);
@@ -432,6 +452,7 @@ Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
     oracleResult,
     oracleMovies,
     isOracleLoading,
+    oracleMode,
     ratingAnimation,
     selectedFriends,
     setSelectedFriends,

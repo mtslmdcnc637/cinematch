@@ -5,9 +5,10 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bot, Sparkles, Star, Calendar } from 'lucide-react';
+import { X, Bot, Sparkles, Star, Calendar, Users } from 'lucide-react';
 import type { OracleResult } from '../../types';
 import type { Movie } from '../../types';
+import type { OracleMode } from '../../hooks/useRatings';
 
 interface OracleModalProps {
   show: boolean;
@@ -15,6 +16,7 @@ interface OracleModalProps {
   result: OracleResult | null;
   movies: Movie[];
   isLoading: boolean;
+  mode?: OracleMode;
 }
 
 const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p/w342';
@@ -35,11 +37,23 @@ export const OracleModal: React.FC<OracleModalProps> = ({
   result,
   movies,
   isLoading,
+  mode = 'personal',
 }) => {
+  const isGroup = mode === 'group';
+
   // Determine display mode
   const hasStructuredResult = result && result.movies && result.movies.length > 0;
   const hasFallbackText = result?.fallback_text;
   const displayText = hasFallbackText || (result?.summary || '');
+
+  // Theme colors based on mode
+  const accentColor = isGroup ? 'purple' : 'emerald';
+  const accentFrom = isGroup ? 'from-purple-500' : 'from-emerald-500';
+  const accentTo = isGroup ? 'to-pink-500' : 'to-teal-500';
+  const accentBorder = isGroup ? 'border-purple-500/30' : 'border-emerald-500/30';
+  const accentGlow = isGroup ? 'shadow-[0_0_30px_rgba(168,85,247,0.5)]' : 'shadow-[0_0_30px_rgba(16,185,129,0.5)]';
+  const accentGradient = isGroup ? 'from-purple-500/10 to-pink-500/10' : 'from-emerald-500/10 to-teal-500/10';
+  const accentText = isGroup ? 'text-purple-400' : 'text-emerald-400';
 
   return (
     <AnimatePresence>
@@ -55,10 +69,11 @@ export const OracleModal: React.FC<OracleModalProps> = ({
             initial={{ scale: 0.9, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
-            className="bg-[#111] border border-emerald-500/30 rounded-[2rem] p-6 sm:p-8 max-w-xl w-full shadow-2xl relative overflow-hidden max-h-[85vh] flex flex-col"
+            className="bg-[#111] border rounded-[2rem] p-6 sm:p-8 max-w-xl w-full shadow-2xl relative overflow-hidden max-h-[85vh] flex flex-col"
+            style={{ borderColor: isGroup ? 'rgba(168,85,247,0.3)' : 'rgba(16,185,129,0.3)' }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 pointer-events-none" />
+            <div className={`absolute inset-0 bg-gradient-to-br ${accentGradient} pointer-events-none`} />
 
             <button
               onClick={() => onClose()}
@@ -68,19 +83,31 @@ export const OracleModal: React.FC<OracleModalProps> = ({
             </button>
 
             <div className="text-center relative z-10 flex-shrink-0">
-              <div className="w-16 h-16 mx-auto bg-gradient-to-br from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(16,185,129,0.5)]">
-                <Bot className="w-8 h-8 text-white" />
+              <div className={`w-16 h-16 mx-auto bg-gradient-to-br ${accentFrom} ${accentTo} rounded-full flex items-center justify-center mb-4 ${accentGlow}`}>
+                {isGroup ? (
+                  <Users className="w-8 h-8 text-white" />
+                ) : (
+                  <Bot className="w-8 h-8 text-white" />
+                )}
               </div>
 
-              <h3 className="text-2xl font-bold text-white mb-1 font-display">Oráculo de IA</h3>
-              <p className="text-gray-500 text-xs">Recomendações personalizadas para você</p>
+              <h3 className="text-2xl font-bold text-white mb-1 font-display">
+                {isGroup ? 'Acordo de Paz' : 'Oráculo de IA'}
+              </h3>
+              <p className="text-gray-500 text-xs">
+                {isGroup ? 'Recomendações para todo o grupo' : 'Recomendações personalizadas para você'}
+              </p>
             </div>
 
             <div className="relative z-10 overflow-y-auto flex-1 pr-1 mt-4 custom-scrollbar space-y-4">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-10">
-                  <Sparkles className="w-10 h-10 text-emerald-400 animate-spin-slow mb-4" />
-                  <p className="text-gray-400">O Oráculo está analisando seu perfil...</p>
+                  <Sparkles className={`w-10 h-10 ${accentText} animate-spin-slow mb-4`} />
+                  <p className="text-gray-400">
+                    {isGroup
+                      ? 'Analisando os gostos do grupo...'
+                      : 'O Oráculo está analisando seu perfil...'}
+                  </p>
                 </div>
               ) : hasStructuredResult ? (
                 <>
@@ -114,8 +141,8 @@ export const OracleModal: React.FC<OracleModalProps> = ({
                               />
                             </div>
                           ) : (
-                            <div className="w-24 sm:w-28 flex-shrink-0 bg-gradient-to-br from-emerald-900/40 to-teal-900/40 flex items-center justify-center">
-                              <Film className="w-8 h-8 text-emerald-500/40" />
+                            <div className={`w-24 sm:w-28 flex-shrink-0 bg-gradient-to-br ${accentGradient} flex items-center justify-center`}>
+                              <Film className="w-8 h-8 opacity-40" />
                             </div>
                           )}
 

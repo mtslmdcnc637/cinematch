@@ -19,6 +19,22 @@ function isRateLimited(userId: string): boolean {
   return false
 }
 
+/**
+ * Sanitize error messages from external APIs (OpenRouter) to prevent
+ * leaking HTTP status codes or sensitive info to the client.
+ * The client uses `msg.includes('401')` to detect auth failures, so we
+ * must strip status codes from upstream error messages to avoid false positives.
+ */
+function sanitizeApiError(message: string): string {
+  // Remove common patterns like "HTTP 401", "status 401", "code 401"
+  return message
+    .replace(/\bHTTP\s*\d{3}\b/gi, '')
+    .replace(/\bstatus\s*:?\s*\d{3}\b/gi, '')
+    .replace(/\bcode\s*:?\s*\d{3}\b/gi, '')
+    .replace(/\bError\s*\d{3}\b/gi, '')
+    .trim()
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -86,24 +102,38 @@ serve(async (req) => {
     const apiKey = Deno.env.get('OPENROUTER_API_KEY')
 
     if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY is not configured in Supabase Edge Functions')
+      console.error('[oracle] OPENROUTER_API_KEY is not configured')
+      throw new Error('Serviço de IA temporariamente indisponível. Tente novamente mais tarde.')
     }
 
     // Use deepseek-chat-v3 via OpenRouter — cheap, recent, good film knowledge
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://mrcine.pro',
-        'X-Title': 'MrCine PRO',
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3-0324',
-        messages: [
-          {
-            role: 'system',
-            content: `Você é o Oráculo do MrCine, um especialista em cinema altamente sofisticado.
+    // Fallback models if primary is unavailable
+    const models = [
+      'deepseek/deepseek-chat-v3-0324',
+      'deepseek/deepseek-chat',
+      'google/gemini-2.0-flash-001',
+    ]
+
+    let lastError: Error | null = null
+    let data: any = null
+
+    for (const model of models) {
+      try {
+        console.log(`[oracle] Trying model: ${model}`)
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://mrcine.pro',
+            'X-Title': 'MrCine PRO',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: 'system',
+                content: `Você é o Oráculo do MrCine, um especialista em cinema altamente sofisticado.
 Sua missão é recomendar exatamente 3 filmes com base no gosto do usuário.
 
 IMPORTANTE: Você DEVE responder EXCLUSIVAMENTE com um JSON válido, sem nenhum texto adicional antes ou depois. O JSON deve seguir exatamente esta estrutura:
@@ -126,20 +156,40 @@ Regras:
 4. Responda sempre em português brasileiro.
 5. O "reason" deve ser empolgante e personalizado.
 6. Retorne APENAS o JSON, sem markdown, sem \`\`\`, sem explicação.`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-      }),
-    })
+              },
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            temperature: 0.7,
+          }),
+        })
 
-    const data = await response.json()
+        const responseData = await response.json()
 
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'Failed to fetch from OpenRouter')
+        if (response.ok) {
+          data = responseData
+          console.log(`[oracle] Success with model: ${model}`)
+          break
+        }
+
+        // Model failed — sanitize error and try next
+        const rawError = responseData.error?.message || responseData.error || 'Unknown error'
+        lastError = new Error(sanitizeApiError(String(rawError)))
+        console.error(`[oracle] Model ${model} failed:`, rawError)
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e))
+        console.error(`[oracle] Error with model ${model}:`, lastError.message)
+      }
+    }
+
+    if (!data || !data.choices) {
+      throw new Error(
+        lastError
+          ? `Erro ao consultar a IA: ${sanitizeApiError(lastError.message)}`
+          : 'Erro ao consultar a IA. Tente novamente em alguns minutos.'
+      )
     }
 
     const rawContent = data.choices[0].message.content.trim()
@@ -164,8 +214,10 @@ Regras:
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('[oracle] Fatal error:', message)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: sanitizeApiError(message) }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
     )
   }
