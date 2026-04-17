@@ -64,7 +64,7 @@ export default function App() {
     showLevelUpModal, setShowLevelUpModal, newLevelData, setNewLevelData,
     showHelpModal, setShowHelpModal, showNotificationsModal, setShowNotificationsModal,
     notifications, notificationPrefs, handleUpdatePreference, handleSaveGenres,
-    setIsInitialLoading: setProfileInitialLoading, loadUserData,
+    isInitialLoading: isDataLoading, loadUserData, dataLoadError,
   } = useProfile({
     user,
   });
@@ -225,9 +225,22 @@ export default function App() {
         />
       )}
 
+      {/* Data Load Error Banner */}
+      {user && dataLoadError && !isDataLoading && (
+        <div className="fixed top-16 left-0 right-0 z-50 bg-red-900/80 backdrop-blur-xl border-b border-red-500/30 px-4 py-3 text-center">
+          <p className="text-red-200 text-sm">{dataLoadError}</p>
+          <button
+            onClick={() => { loadUserData(setRatings, setWatchlist); }}
+            className="mt-1 text-xs text-red-300 underline hover:text-red-100"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-24 md:pb-12 min-h-screen flex flex-col">
-        {isInitialLoading ? (
+        {isInitialLoading || (user && isDataLoading) ? (
           <div className="flex-1 flex items-center justify-center">
             <motion.div
               animate={{ rotate: 360 }}

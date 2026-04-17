@@ -6,6 +6,7 @@
 import { useState, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
+import { supabase } from '../lib/supabase';
 import { UserProfile, UserRating, WatchlistItem } from '../types';
 import { toast } from 'sonner';
 
@@ -71,6 +72,7 @@ interface UseProfileReturn {
   handleSaveGenres: () => Promise<void>;
   isInitialLoading: boolean;
   setIsInitialLoading: (loading: boolean) => void;
+  dataLoadError: string | null;
   loadUserData: (ratingsSetter: Dispatch<SetStateAction<UserRating[]>>, watchlistSetter: Dispatch<SetStateAction<WatchlistItem[]>>) => void;
 }
 
@@ -90,6 +92,7 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [dataLoadError, setDataLoadError] = useState<string | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -113,6 +116,8 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
       ratingsSetter: Dispatch<SetStateAction<UserRating[]>>,
       watchlistSetter: Dispatch<SetStateAction<WatchlistItem[]>>
     ) => {
+      setDataLoadError(null);
+
       if (user) {
         supabaseService.getProfile(user.id).then(async (profile) => {
           if (profile) {
@@ -144,7 +149,52 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
             setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
           }
           setIsInitialLoading(false);
-        }).catch(() => {
+        }).catch(async (err) => {
+          console.error('[loadUserData] getProfile failed:', err);
+
+          // If the error looks like an auth issue, try refreshing the session once
+          const errMsg = err instanceof Error ? err.message : String(err);
+          if (supabase && (errMsg.includes('401') || errMsg.includes('JWT') || errMsg.includes('auth') || errMsg.includes('token'))) {
+            console.log('[loadUserData] Attempting session refresh before retry...');
+            try {
+              const { data: { session } } = await supabase.auth.refreshSession();
+              if (session) {
+                console.log('[loadUserData] Session refreshed, retrying getProfile...');
+                try {
+                  const retryProfile = await supabaseService.getProfile(user.id);
+                  if (retryProfile) {
+                    setUserProfile(retryProfile);
+                    if (retryProfile.selectedGenres && retryProfile.selectedGenres.length >= 3) {
+                      setSelectedGenres(retryProfile.selectedGenres);
+                      if (!hasSetInitialPageRef.current) {
+                        setCurrentPage('feed');
+                        hasSetInitialPageRef.current = true;
+                      }
+                    } else {
+                      if (!hasSetInitialPageRef.current) {
+                        setCurrentPage('onboarding');
+                        hasSetInitialPageRef.current = true;
+                      }
+                    }
+                  } else {
+                    setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
+                    if (!hasSetInitialPageRef.current) {
+                      setCurrentPage('onboarding');
+                      hasSetInitialPageRef.current = true;
+                    }
+                  }
+                  setIsInitialLoading(false);
+                  return; // Success — don't set error
+                } catch (retryErr) {
+                  console.error('[loadUserData] Retry after refresh also failed:', retryErr);
+                }
+              }
+            } catch (refreshErr) {
+              console.error('[loadUserData] Session refresh failed:', refreshErr);
+            }
+          }
+
+          setDataLoadError('Erro ao carregar seus dados. Tente novamente ou faça login novamente.');
           setIsInitialLoading(false);
         });
 
@@ -152,13 +202,17 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
           if (data && data.length > 0) {
             ratingsSetter(data);
           }
-        }).catch(() => {});
+        }).catch((err) => {
+          console.error('[loadUserData] getRatings failed:', err);
+        });
 
         supabaseService.getWatchlist(user.id).then(data => {
           if (data && data.length > 0) {
             watchlistSetter(data);
           }
-        }).catch(() => {});
+        }).catch((err) => {
+          console.error('[loadUserData] getWatchlist failed:', err);
+        });
       } else {
         setUserProfile({ xp: 0, level: 1 });
         setIsInitialLoading(false);
@@ -245,6 +299,7 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
     handleSaveGenres,
     isInitialLoading,
     setIsInitialLoading,
+    dataLoadError,
     loadUserData,
   };
 }

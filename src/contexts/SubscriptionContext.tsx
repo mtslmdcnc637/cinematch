@@ -39,31 +39,43 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
     }
 
     try {
-      // Run both DB queries in parallel to reduce latency
+      // Run both DB queries in parallel to reduce latency.
+      // PostgrestBuilder is thenable but NOT a real Promise (no .catch()),
+      // so we wrap each query in an async IIFE with try/catch.
       const [profileResult, subResult] = await Promise.all([
-        supabase
-          .from('profiles')
-          .select('swipes_today, dicas_today, last_swipe_date, last_dica_date, subscription_status, subscription_plan')
-          .eq('id', userId)
-          .single()
-          .catch(() => ({ data: null })),
-        supabase
-          .from('subscriptions')
-          .select('plan_type, status, stripe_customer_id, cancel_at_period_end')
-          .eq('user_id', userId)
-          .eq('status', 'active')
-          .maybeSingle()
-          .catch(() => ({ data: null })),
+        (async () => {
+          try {
+            return await supabase!
+              .from('profiles')
+              .select('swipes_today, dicas_today, last_swipe_date, last_dica_date, subscription_status, subscription_plan')
+              .eq('id', userId)
+              .single();
+          } catch {
+            return { data: null } as const;
+          }
+        })(),
+        (async () => {
+          try {
+            return await supabase!
+              .from('subscriptions')
+              .select('plan_type, status, stripe_customer_id, cancel_at_period_end')
+              .eq('user_id', userId)
+              .eq('status', 'active')
+              .maybeSingle();
+          } catch {
+            return { data: null } as const;
+          }
+        })(),
       ]);
 
-      const profile = profileResult.data;
+      const profile = profileResult?.data;
       if (profile) {
         const today = new Date().toISOString().split('T')[0];
         setSwipesToday(profile.last_swipe_date === today ? profile.swipes_today : 0);
         setDicasToday(profile.last_dica_date === today ? profile.dicas_today : 0);
       }
 
-      const sub = subResult.data;
+      const sub = subResult?.data;
 
       if (sub) {
         setPlanType(sub.plan_type as PlanType);
@@ -96,8 +108,8 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
           setPlanType('free');
         }
       }
-    } catch {
-      // Silently handle error
+    } catch (err) {
+      console.error('[SubscriptionContext] fetchSubscriptionData failed:', err);
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +138,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase?.removeChannel(channel);
     };
   }, [userId, fetchSubscriptionData]);
 
