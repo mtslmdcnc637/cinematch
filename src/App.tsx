@@ -173,6 +173,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#030303] text-white font-sans selection:bg-purple-500/30 overflow-x-hidden">
       <Toaster theme="dark" position="top-center" className="font-sans" toastOptions={{
+        duration: 4000,
         style: { background: 'rgba(20, 20, 20, 0.8)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }
       }} />
 

@@ -190,6 +190,8 @@ export function useRatings({
     },
     onSettled: () => {
       setIsOracleLoading(false);
+      // Dismiss any lingering loading toasts (e.g. 'group-ai')
+      toast.dismiss('group-ai');
     },
   });
 
