@@ -6,7 +6,6 @@
 import { useState, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
-import { supabase } from '../lib/supabase';
 import { UserProfile, UserRating, WatchlistItem } from '../types';
 import { toast } from 'sonner';
 
@@ -128,20 +127,17 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
             setUserProfile(profile);
             if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
               setSelectedGenres(profile.selectedGenres);
-              // User already has genres — ensure they're on feed, not onboarding
               if (!hasSetInitialPageRef.current) {
                 setCurrentPage('feed');
                 hasSetInitialPageRef.current = true;
               }
             } else {
-              // New user without genres — send to onboarding to select genres
               if (!hasSetInitialPageRef.current) {
                 setCurrentPage('onboarding');
                 hasSetInitialPageRef.current = true;
               }
             }
           } else {
-            // No profile exists yet — new user, go to onboarding
             if (!hasSetInitialPageRef.current) {
               setCurrentPage('onboarding');
               hasSetInitialPageRef.current = true;
@@ -149,52 +145,12 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
             setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
           }
           setIsInitialLoading(false);
-        }).catch(async (err) => {
+        }).catch((err) => {
           console.error('[loadUserData] getProfile failed:', err);
-
-          // If the error looks like an auth issue, try refreshing the session once
-          const errMsg = err instanceof Error ? err.message : String(err);
-          if (supabase && (errMsg.includes('401') || errMsg.includes('JWT') || errMsg.includes('auth') || errMsg.includes('token'))) {
-            console.log('[loadUserData] Attempting session refresh before retry...');
-            try {
-              const { data: { session } } = await supabase.auth.refreshSession();
-              if (session) {
-                console.log('[loadUserData] Session refreshed, retrying getProfile...');
-                try {
-                  const retryProfile = await supabaseService.getProfile(user.id);
-                  if (retryProfile) {
-                    setUserProfile(retryProfile);
-                    if (retryProfile.selectedGenres && retryProfile.selectedGenres.length >= 3) {
-                      setSelectedGenres(retryProfile.selectedGenres);
-                      if (!hasSetInitialPageRef.current) {
-                        setCurrentPage('feed');
-                        hasSetInitialPageRef.current = true;
-                      }
-                    } else {
-                      if (!hasSetInitialPageRef.current) {
-                        setCurrentPage('onboarding');
-                        hasSetInitialPageRef.current = true;
-                      }
-                    }
-                  } else {
-                    setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
-                    if (!hasSetInitialPageRef.current) {
-                      setCurrentPage('onboarding');
-                      hasSetInitialPageRef.current = true;
-                    }
-                  }
-                  setIsInitialLoading(false);
-                  return; // Success — don't set error
-                } catch (retryErr) {
-                  console.error('[loadUserData] Retry after refresh also failed:', retryErr);
-                }
-              }
-            } catch (refreshErr) {
-              console.error('[loadUserData] Session refresh failed:', refreshErr);
-            }
-          }
-
-          setDataLoadError('Erro ao carregar seus dados. Tente novamente ou faça login novamente.');
+          // Do NOT call refreshSession() here — it can invalidate the session
+          // and cause the user to be logged out unexpectedly.
+          // Just show the error and let the user retry.
+          setDataLoadError('Erro ao carregar seus dados. Tente novamente.');
           setIsInitialLoading(false);
         });
 

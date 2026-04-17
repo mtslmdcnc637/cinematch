@@ -240,7 +240,7 @@ export default function App() {
 
       {/* Main Content */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-24 md:pb-12 min-h-screen flex flex-col">
-        {isInitialLoading || (user && isDataLoading) ? (
+        {isInitialLoading ? (
           <div className="flex-1 flex items-center justify-center">
             <motion.div
               animate={{ rotate: 360 }}
