@@ -95,24 +95,66 @@ export function useAuth(): UseAuthReturn {
     return () => subscription.unsubscribe();
   }, []);
 
+  /**
+   * Translate cryptic network errors into user-friendly Portuguese messages.
+   * The Supabase SDK surfaces the browser's native TypeError message
+   * ("Failed to fetch") when a request can't reach the server at all.
+   */
+  const sanitizeAuthError = (error: unknown): string => {
+    if (!(error instanceof Error)) return 'Erro na autenticação. Tente novamente.';
+    const msg = error.message;
+    if (msg === 'Failed to fetch' || msg === 'NetworkError when attempting to fetch resource.' || msg === 'Network request failed') {
+      return 'Erro de conexão com o servidor. Verifique sua internet e tente novamente.';
+    }
+    if (msg.includes('Invalid login credentials')) {
+      return 'E-mail ou senha incorretos.';
+    }
+    if (msg.includes('Email not confirmed')) {
+      return 'E-mail não confirmado. Verifique sua caixa de entrada.';
+    }
+    if (msg.includes('Too many requests') || msg.includes('rate limit')) {
+      return 'Muitas tentativas. Aguarde um momento e tente novamente.';
+    }
+    return msg || 'Erro na autenticação. Tente novamente.';
+  };
+
   const handleEmailAuth = async (e: FormEvent) => {
     e.preventDefault();
     setIsAuthLoading(true);
-    try {
-      if (isSignUp) {
-        await supabaseService.signUpWithEmail(authEmail, authPassword, authUsername);
-        toast.success('Conta criada! Verifique seu e-mail ou faça login.', { icon: '🎉' });
-        setIsSignUp(false);
-      } else {
-        await supabaseService.signInWithEmail(authEmail, authPassword);
-        toast.success('Login realizado com sucesso!', { icon: '👋' });
+    const maxRetries = 2;
+    let attempt = 0;
+    while (attempt <= maxRetries) {
+      try {
+        if (isSignUp) {
+          await supabaseService.signUpWithEmail(authEmail, authPassword, authUsername);
+          toast.success('Conta criada! Verifique seu e-mail ou faça login.', { icon: '🎉' });
+          setIsSignUp(false);
+        } else {
+          await supabaseService.signInWithEmail(authEmail, authPassword);
+          toast.success('Login realizado com sucesso!', { icon: '👋' });
+        }
+        break; // success — exit loop
+      } catch (error: unknown) {
+        const isNetworkError = error instanceof Error &&
+          (error.message === 'Failed to fetch' ||
+           error.message === 'NetworkError when attempting to fetch resource.' ||
+           error.message === 'Network request failed');
+
+        if (isNetworkError && attempt < maxRetries) {
+          attempt++;
+          // Exponential backoff: 1s, 2s
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+          continue;
+        }
+        toast.error(sanitizeAuthError(error));
+        break;
+      } finally {
+        if (attempt >= maxRetries || /* success */ true) {
+          setIsAuthLoading(false);
+        }
       }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Erro na autenticação';
-      toast.error(message);
-    } finally {
-      setIsAuthLoading(false);
     }
+    setIsAuthLoading(false);
   };
 
   const handleGoogleAuth = async () => {

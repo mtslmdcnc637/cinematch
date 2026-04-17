@@ -1,9 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
 // Simple in-memory rate limiter: userId → [timestamps]
@@ -35,9 +35,18 @@ function sanitizeApiError(message: string): string {
     .trim()
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Only allow POST
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 405 }
+    )
   }
 
   // JWT Authentication check
@@ -49,8 +58,8 @@ serve(async (req) => {
     )
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
   if (!supabaseUrl || !supabaseAnonKey) {
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
@@ -78,6 +87,8 @@ serve(async (req) => {
   }
 
   // SECURITY: Verify user has an active PRO subscription before consuming API credits
+  // Accept both 'active' and 'trialing' — Stripe uses 'trialing' for subscriptions
+  // in their trial period, which still grants full PRO access.
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   if (supabaseServiceKey) {
     const adminClient = createClient(supabaseUrl, supabaseServiceKey)
@@ -85,7 +96,7 @@ serve(async (req) => {
       .from('subscriptions')
       .select('status')
       .eq('user_id', user.id)
-      .eq('status', 'active')
+      .in('status', ['active', 'trialing'])
       .maybeSingle()
 
     if (!sub) {

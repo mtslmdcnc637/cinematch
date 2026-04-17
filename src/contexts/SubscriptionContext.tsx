@@ -60,7 +60,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
               .from('subscriptions')
               .select('plan_type, status, stripe_customer_id, cancel_at_period_end')
               .eq('user_id', userId)
-              .eq('status', 'active')
+              .in('status', ['active', 'trialing'])
               .maybeSingle();
           } catch {
             return { data: null } as const;
@@ -98,9 +98,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
               setTimeout(() => reject(new Error('Timeout')), 5000)
             ),
           ]);
-          if (checkResult.status === 'active' && checkResult.plan_type) {
+          if ((checkResult.status === 'active' || checkResult.status === 'trialing') && checkResult.plan_type) {
             setPlanType(checkResult.plan_type as PlanType);
-            setIsTrialing(false);
+            setIsTrialing(checkResult.status === 'trialing');
           } else {
             setPlanType('free');
           }

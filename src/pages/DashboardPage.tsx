@@ -126,9 +126,9 @@ export default function DashboardPage() {
   const totalQuizResponses = quizResponses.length;
   const completedQuizzes = quizResponses.filter(r => r.completed).length;
   const incompleteQuizzes = quizResponses.filter(r => !r.completed).length;
-  const activeSubscriptions = subscriptions.filter(s => s.status === 'active').length;
+  const activeSubscriptions = subscriptions.filter(s => s.status === 'active' || s.status === 'trialing').length;
   const freeUsers = profiles.filter(p => !p.subscription_status || p.subscription_status === 'free').length;
-  const proUsers = profiles.filter(p => p.subscription_status === 'pro' || p.subscription_status === 'active').length;
+  const proUsers = profiles.filter(p => p.subscription_status === 'pro' || p.subscription_status === 'active' || p.subscription_status === 'trialing').length;
 
   // Funnel: count users per step
   const funnelSteps = useCallback(() => {
@@ -500,7 +500,7 @@ export default function DashboardPage() {
                         </td>
                         <td className="py-3 px-2">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            p.subscription_status === 'active' || p.subscription_status === 'pro'
+                            p.subscription_status === 'active' || p.subscription_status === 'pro' || p.subscription_status === 'trialing'
                               ? 'bg-green-500/10 text-green-400'
                               : 'bg-gray-500/10 text-gray-400'
                           }`}>

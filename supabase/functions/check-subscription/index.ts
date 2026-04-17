@@ -44,8 +44,9 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .maybeSingle()
 
-    // If already active in DB, return it
-    if (existingSub?.status === 'active') {
+    // If already active or trialing in DB, return it
+    // Stripe uses 'trialing' for subscriptions in their trial period, which still grants full PRO access.
+    if (existingSub?.status === 'active' || existingSub?.status === 'trialing') {
       return new Response(
         JSON.stringify({ status: existingSub.status, plan_type: existingSub.plan_type, source: 'database' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

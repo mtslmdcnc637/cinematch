@@ -81,7 +81,7 @@ export const PublicProfilePage: React.FC<PublicProfilePageProps> = ({ username }
   }, [username]);
 
   const isPro =
-    subscriptionData?.subscription_status === 'active' &&
+    (subscriptionData?.subscription_status === 'active' || subscriptionData?.subscription_status === 'trialing') &&
     subscriptionData?.subscription_plan !== 'free' &&
     subscriptionData?.subscription_plan != null;
 
