@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, UserPlus, User, Check, X, Search, RefreshCw, Sparkles } from 'lucide-react';
+import { Users, UserPlus, User, Check, X, Search, RefreshCw, Sparkles, Lock } from 'lucide-react';
 import { Stories } from '../Stories';
 
 interface FriendsPageProps {
@@ -148,18 +148,25 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
       </div>
 
       <div className="glass-card p-8 rounded-[2rem] text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 pointer-events-none" />
-        <h3 className="text-2xl font-bold mb-2 font-display">Resolver Conflito</h3>
+        <div className={`absolute inset-0 bg-gradient-to-br ${isPro ? 'from-purple-500/10 to-pink-500/10' : 'from-gray-500/5 to-gray-500/5'} pointer-events-none`} />
+        <h3 className="text-2xl font-bold mb-2 font-display flex items-center justify-center gap-2">
+          Resolver Conflito
+          {!isPro && <Lock className="w-4 h-4 text-gray-400" />}
+        </h3>
         <p className="text-gray-400 text-sm mb-6">
           A IA vai analisar o gosto de todos os selecionados e encontrar o filme perfeito que vai agradar todo mundo.
         </p>
         <button
           onClick={handleGroupExportForAI}
           disabled={selectedFriends.length === 0}
-          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-6 rounded-full hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`w-full text-white font-bold py-4 px-6 rounded-full transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+            isPro
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]'
+              : 'bg-white/10 hover:bg-white/20 border border-white/10'
+          }`}
         >
-          <Sparkles className="w-5 h-5" />
-          Gerar Acordo de Paz (Prompt)
+          {isPro ? <Sparkles className="w-5 h-5" /> : <Lock className="w-4 h-4 text-gray-400" />}
+          {isPro ? 'Gerar Acordo de Paz' : 'Desbloquear (PRO)'}
         </button>
       </div>
 

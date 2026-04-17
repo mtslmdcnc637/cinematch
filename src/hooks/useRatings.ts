@@ -383,6 +383,13 @@ Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
   const handleGroupExportForAI = useCallback(async () => {
     if (selectedFriends.length === 0) return;
 
+    // Block free users upfront — no point fetching friend tastes if they can't use it
+    if (!isPro) {
+      toast.error('A resolução de conflitos é exclusiva para assinantes PRO.', { id: 'limit-oracle' });
+      onNavigateToPricing();
+      return;
+    }
+
     toast.loading('Analisando gostos do grupo...', { id: 'group-ai' });
 
     try {
@@ -423,22 +430,17 @@ Com base nisso, me recomende 3 filmes que não estão nessa lista.`;
 
       prompt += 'Com base nisso, sugira 5 filmes que todos nós provavelmente gostaríamos. Explique por que cada filme é uma boa escolha para o grupo, focando nos pontos em comum dos nossos gostos.';
 
-      // Call Oracle AI for PRO users, copy to clipboard for free users
-      if (isPro) {
-        setIsOracleLoading(true);
-        setOracleMode('group');
-        setShowExportModal(true);
-        setOracleResult(null);
-        setOracleMovies([]);
-        exportMutation.mutate(prompt);
-      } else {
-        await navigator.clipboard.writeText(prompt);
-        toast.success('Prompt copiado! Assine PRO para usar o Oráculo integrado.', { id: 'group-ai' });
-      }
+      // Call Oracle AI (isPro already checked above)
+      setIsOracleLoading(true);
+      setOracleMode('group');
+      setShowExportModal(true);
+      setOracleResult(null);
+      setOracleMovies([]);
+      exportMutation.mutate(prompt);
     } catch {
       toast.error('Erro ao gerar prompt', { id: 'group-ai' });
     }
-  }, [selectedFriends, friends, ratings, watchlist, isPro, exportMutation]);
+  }, [selectedFriends, friends, ratings, watchlist, isPro, exportMutation, onNavigateToPricing]);
 
   return {
     ratings,

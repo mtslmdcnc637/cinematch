@@ -39,26 +39,31 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
     }
 
     try {
-      // Fetch profile limits
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('swipes_today, dicas_today, last_swipe_date, last_dica_date, subscription_status, subscription_plan')
-        .eq('id', userId)
-        .single();
+      // Run both DB queries in parallel to reduce latency
+      const [profileResult, subResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('swipes_today, dicas_today, last_swipe_date, last_dica_date, subscription_status, subscription_plan')
+          .eq('id', userId)
+          .single()
+          .catch(() => ({ data: null })),
+        supabase
+          .from('subscriptions')
+          .select('plan_type, status, stripe_customer_id, cancel_at_period_end')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .maybeSingle()
+          .catch(() => ({ data: null })),
+      ]);
 
+      const profile = profileResult.data;
       if (profile) {
         const today = new Date().toISOString().split('T')[0];
         setSwipesToday(profile.last_swipe_date === today ? profile.swipes_today : 0);
         setDicasToday(profile.last_dica_date === today ? profile.dicas_today : 0);
       }
 
-      // Fetch subscription status from subscriptions table
-      const { data: sub } = await supabase
-        .from('subscriptions')
-        .select('plan_type, status, stripe_customer_id, cancel_at_period_end')
-        .eq('user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle();
+      const sub = subResult.data;
 
       if (sub) {
         setPlanType(sub.plan_type as PlanType);
@@ -69,25 +74,21 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode, userId?
         setPlanType(profile.subscription_plan as PlanType);
       } else {
         // Last resort: check Stripe directly via check-subscription edge function
-        // This handles the case where the webhook didn't fire or was blocked
+        // This handles the case where the webhook didn't fire or was blocked.
+        // Use a 5-second timeout to avoid blocking the entire app.
         try {
-          const checkResult = await invokeEdgeFunction<{ status: string; plan_type: string; source: string }>(
-            'check-subscription',
-            {}
-          );
+          const checkResult = await Promise.race([
+            invokeEdgeFunction<{ status: string; plan_type: string; source: string }>(
+              'check-subscription',
+              {}
+            ),
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Timeout')), 5000)
+            ),
+          ]);
           if (checkResult.status === 'active' && checkResult.plan_type) {
             setPlanType(checkResult.plan_type as PlanType);
             setIsTrialing(false);
-            // Re-fetch from DB since check-subscription updates it
-            const { data: updatedSub } = await supabase
-              .from('subscriptions')
-              .select('plan_type, status, stripe_customer_id')
-              .eq('user_id', userId)
-              .eq('status', 'active')
-              .maybeSingle();
-            if (updatedSub) {
-              setStripeCustomerId(updatedSub.stripe_customer_id || undefined);
-            }
           } else {
             setPlanType('free');
           }
