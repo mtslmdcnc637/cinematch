@@ -315,7 +315,7 @@ export default function QuizApp() {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         toast.success('Conta criada com sucesso!');
-        // Go to pricing page (user can skip and use free account)
+        // Go to pricing page
         setStep('pricing');
       } else {
         // Email already exists — sign in instead
@@ -785,7 +785,7 @@ export default function QuizApp() {
                 <Lock className="w-7 h-7 sm:w-9 sm:h-9 text-white" />
               </div>
 
-              <h2 className="text-xl sm:text-3xl font-bold mb-2">Crie sua conta grátis</h2>
+              <h2 className="text-xl sm:text-3xl font-bold mb-2">Crie sua conta</h2>
               <p className="text-gray-400 text-sm sm:text-base mb-6 sm:mb-8 max-w-md">
                 Quase lá! Crie uma senha para acessar seu perfil cinematográfico completo, dicas diárias de filmes e muito mais.
               </p>
@@ -908,28 +908,6 @@ export default function QuizApp() {
               >
                 {isSubscribing ? 'Processando...' : 'Assinar Agora'}
               </button>
-
-              {/* Free account option */}
-              <button
-                onClick={() => navigate('/login')}
-                className="w-full text-gray-400 hover:text-white font-medium py-3 px-6 rounded-2xl transition-colors text-sm underline underline-offset-4 mb-4 sm:mb-6"
-              >
-                Continuar com conta grátis
-              </button>
-
-              {/* Free account info */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-start gap-3 mb-4 sm:mb-6">
-                <Film className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-bold text-sm mb-1">Conta grátis inclui:</h4>
-                  <ul className="text-gray-400 text-xs space-y-1">
-                    <li>30 swipes de filmes por dia</li>
-                    <li>5 dicas diárias de filmes</li>
-                    <li>Seu perfil cinematográfico</li>
-                    <li>Recomendações personalizadas</li>
-                  </ul>
-                </div>
-              </div>
 
               {/* Guarantee & Trust */}
               <div className="bg-white/5 border border-white/10 rounded-2xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4">

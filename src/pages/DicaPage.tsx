@@ -237,13 +237,13 @@ export default function DicaPage() {
               <Sparkles className="w-8 h-8 text-purple-400 mx-auto mb-3" />
               <h3 className="text-xl font-bold mb-2">Quer dicas personalizadas?</h3>
               <p className="text-gray-400 mb-4">
-                Crie sua conta grátis e receba recomendações baseadas no seu gosto
+                Crie sua conta e receba recomendações baseadas no seu gosto
               </p>
               <button
                 onClick={() => navigate('/login')}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-semibold hover:from-purple-500 hover:to-pink-500 transition-all"
               >
-                Criar conta grátis
+                Criar conta
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

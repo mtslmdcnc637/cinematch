@@ -111,7 +111,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
               onClick={() => setStep(1)}
               className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
             >
-              Criar minha conta grátis
+              Criar minha conta
               <Sparkles className="w-5 h-5" />
             </button>
             <button
