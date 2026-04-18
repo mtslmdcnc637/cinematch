@@ -3,7 +3,10 @@
  *
  * Generates social media content suggestions based on a theme/prompt.
  * Returns 2 options of 5 movies each (with TMDB IDs), plus title and bar text.
- * Uses OpenRouter API (same as oracle) for AI generation.
+ *
+ * Supports two AI providers:
+ * 1. Google AI (Gemma) via GOOGLE_API_KEY — preferred if available (free tier)
+ * 2. OpenRouter (DeepSeek) via OPENROUTER_API_KEY — fallback
  *
  * Auth: admin_password (same as admin-stats) — no JWT required.
  */
@@ -38,66 +41,7 @@ function sanitizeApiError(message: string): string {
     .trim()
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Method not allowed' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 405 }
-    )
-  }
-
-  try {
-    const { admin_password, prompt } = await req.json()
-
-    // Verify admin password
-    if (!admin_password || !(await verifyPassword(admin_password))) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      )
-    }
-
-    if (!prompt || typeof prompt !== 'string') {
-      return new Response(
-        JSON.stringify({ error: 'Prompt é obrigatório' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      )
-    }
-
-    const apiKey = Deno.env.get('OPENROUTER_API_KEY')
-    if (!apiKey) {
-      throw new Error('OPENROUTER_API_KEY não configurada')
-    }
-
-    const models = [
-      'deepseek/deepseek-chat-v3-0324',
-      'deepseek/deepseek-chat',
-    ]
-
-    let lastError: Error | null = null
-    let data: any = null
-
-    for (const model of models) {
-      try {
-        console.log(`[content-gen] Trying model: ${model}`)
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://mrcine.pro',
-            'X-Title': 'MrCine Content Generator',
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: 'system',
-                content: `Você é um gerador de conteúdo para redes sociais do MrCine, uma plataforma de recomendação de filmes.
+const SYSTEM_PROMPT = `Você é um gerador de conteúdo para redes sociais do MrCine, uma plataforma de recomendação de filmes.
 Sua missão é criar sugestões de postagens para Instagram e TikTok com base no tema solicitado.
 
 IMPORTANTE: Você DEVE responder EXCLUSIVAMENTE com um JSON válido, sem nenhum texto adicional antes ou depois.
@@ -132,40 +76,159 @@ Regras:
 5. O "texto_barra" será usado como texto destaque no topo da imagem da postagem.
 6. O "titulo" será o texto principal da postagem.
 7. Responda sempre em português brasileiro.
-8. Retorne APENAS o JSON, sem markdown, sem \`\`\`, sem explicação.`
-              },
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
+8. Estamos no ano de 2026. Ao gerar títulos, use 2026 como ano atual (não 2025 ou anterior).
+9. Se o usuário pedir filmes de um ano específico, use esse ano. Se pedir "do ano", use 2026.
+10. Retorne APENAS o JSON, sem markdown, sem \`\`\`, sem explicação.`
+
+// ─── Google AI (Gemma) Provider ────────────────────────────────────────────────
+async function callGoogleAI(prompt: string): Promise<any> {
+  const apiKey = Deno.env.get('GOOGLE_API_KEY')
+  if (!apiKey || apiKey === 'PLACEHOLDER_FILL_YOUR_KEY') {
+    console.log('[content-gen] GOOGLE_API_KEY not configured, skipping')
+    return null
+  }
+
+  const models = [
+    'gemma-3-27b-it',
+    'gemma-3-12b-it',
+    'gemini-2.0-flash',
+  ]
+
+  for (const model of models) {
+    try {
+      console.log(`[content-gen] Trying Google AI model: ${model}`)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              { text: SYSTEM_PROMPT },
+              { text: prompt }
+            ]
+          }],
+          generationConfig: {
             temperature: 0.8,
-          }),
-        })
+            maxOutputTokens: 2048,
+          }
+        }),
+      })
 
-        const responseData = await response.json()
+      const data = await response.json()
 
-        if (response.ok) {
-          data = responseData
-          console.log(`[content-gen] Success with model: ${model}`)
-          break
+      if (response.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        console.log(`[content-gen] Success with Google AI model: ${model}`)
+        // Convert Google AI response to OpenAI-compatible format
+        const text = data.candidates[0].content.parts[0].text
+        return {
+          choices: [{
+            message: { content: text }
+          }]
         }
-
-        const rawError = responseData.error?.message || responseData.error || 'Unknown error'
-        lastError = new Error(sanitizeApiError(String(rawError)))
-        console.error(`[content-gen] Model ${model} failed:`, rawError)
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e))
-        console.error(`[content-gen] Error with model ${model}:`, lastError.message)
       }
+
+      const errMsg = data.error?.message || 'Unknown error'
+      console.error(`[content-gen] Google AI model ${model} failed:`, errMsg)
+    } catch (e) {
+      console.error(`[content-gen] Error with Google AI model ${model}:`, e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  return null
+}
+
+// ─── OpenRouter (DeepSeek) Provider ────────────────────────────────────────────
+async function callOpenRouter(prompt: string): Promise<any> {
+  const apiKey = Deno.env.get('OPENROUTER_API_KEY')
+  if (!apiKey) {
+    console.log('[content-gen] OPENROUTER_API_KEY not configured, skipping')
+    return null
+  }
+
+  const models = [
+    'deepseek/deepseek-chat-v3-0324',
+    'deepseek/deepseek-chat',
+  ]
+
+  for (const model of models) {
+    try {
+      console.log(`[content-gen] Trying OpenRouter model: ${model}`)
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://mrcine.pro',
+          'X-Title': 'MrCine Content Generator',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.8,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.choices) {
+        console.log(`[content-gen] Success with OpenRouter model: ${model}`)
+        return data
+      }
+
+      const rawError = data.error?.message || data.error || 'Unknown error'
+      console.error(`[content-gen] OpenRouter model ${model} failed:`, rawError)
+    } catch (e) {
+      console.error(`[content-gen] Error with OpenRouter model ${model}:`, e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  return null
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 405 }
+    )
+  }
+
+  try {
+    const { admin_password, prompt } = await req.json()
+
+    // Verify admin password
+    if (!admin_password || !(await verifyPassword(admin_password))) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      )
+    }
+
+    if (!prompt || typeof prompt !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Prompt é obrigatório' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      )
+    }
+
+    // Try Google AI first (free tier), then fall back to OpenRouter
+    let data = await callGoogleAI(prompt)
+
+    if (!data) {
+      data = await callOpenRouter(prompt)
     }
 
     if (!data || !data.choices) {
-      throw new Error(
-        lastError
-          ? `Erro ao gerar conteúdo: ${sanitizeApiError(lastError.message)}`
-          : 'Erro ao gerar conteúdo. Tente novamente.'
-      )
+      throw new Error('Nenhuma API de IA disponível. Configure GOOGLE_API_KEY ou OPENROUTER_API_KEY.')
     }
 
     const rawContent = data.choices[0].message.content.trim()

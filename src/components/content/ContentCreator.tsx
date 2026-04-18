@@ -83,7 +83,8 @@ async function generateSlideImage(
   isCTA: boolean,
   option: ContentOption,
   template: TemplateStyle,
-  format: PlatformFormat
+  format: PlatformFormat,
+  secretCode?: string
 ): Promise<Blob> {
   const config = TEMPLATE_CONFIGS[template];
   const width = 1080;
@@ -94,11 +95,12 @@ async function generateSlideImage(
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
 
-  // Background gradient
+  // ─── Background ───
   const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
   if (template === 'neon') {
     bgGrad.addColorStop(0, '#0a0a1a');
-    bgGrad.addColorStop(0.5, '#1a0a2e');
+    bgGrad.addColorStop(0.4, '#1a0a2e');
+    bgGrad.addColorStop(0.8, '#120828');
     bgGrad.addColorStop(1, '#0a0a1a');
   } else if (template === 'minimal') {
     bgGrad.addColorStop(0, '#111111');
@@ -106,81 +108,138 @@ async function generateSlideImage(
     bgGrad.addColorStop(1, '#111111');
   } else if (template === 'gradient') {
     bgGrad.addColorStop(0, '#1a0533');
-    bgGrad.addColorStop(0.5, '#2d1b69');
+    bgGrad.addColorStop(0.4, '#2d1b69');
+    bgGrad.addColorStop(0.8, '#1a0a3d');
     bgGrad.addColorStop(1, '#1a0533');
   } else {
     bgGrad.addColorStop(0, '#0c0c0c');
-    bgGrad.addColorStop(0.5, '#1a0a0a');
+    bgGrad.addColorStop(0.4, '#1a0a0a');
+    bgGrad.addColorStop(0.8, '#120808');
     bgGrad.addColorStop(1, '#0c0c0c');
   }
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
 
+  // Subtle decorative glow at center
+  const glowGrad = ctx.createRadialGradient(width / 2, height * 0.45, 0, width / 2, height * 0.45, 500);
+  glowGrad.addColorStop(0, config.barColor + '15');
+  glowGrad.addColorStop(1, 'transparent');
+  ctx.fillStyle = glowGrad;
+  ctx.fillRect(0, 0, width, height);
+
   if (isCTA) {
     // ─── CTA Slide ───
     // Decorative circles
-    ctx.globalAlpha = 0.08;
+    ctx.globalAlpha = 0.06;
     ctx.fillStyle = config.barColor;
     ctx.beginPath();
-    ctx.arc(width / 2, height * 0.3, 300, 0, Math.PI * 2);
+    ctx.arc(width / 2, height * 0.25, 350, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(width / 2, height * 0.7, 200, 0, Math.PI * 2);
+    ctx.arc(width / 2, height * 0.75, 250, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Film icon (text-based)
+    // Film icon
     ctx.fillStyle = config.barColor;
     ctx.font = 'bold 80px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('🎬', width / 2, height * 0.32);
+    ctx.fillText('\uD83C\uDFAC', width / 2, height * 0.28);
 
     // Main CTA text
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 52px Arial';
-    ctx.fillText('Quer saber quais', width / 2, height * 0.45);
-    ctx.fillText('filmes são perfeitos', width / 2, height * 0.45 + 65);
-    ctx.fillText('pra VOCÊ?', width / 2, height * 0.45 + 130);
+    ctx.font = 'bold 48px Arial';
+    ctx.fillText('Quer saber quais', width / 2, height * 0.40);
+    ctx.fillText('filmes sao perfeitos', width / 2, height * 0.40 + 62);
+    ctx.fillText('pra VOCE?', width / 2, height * 0.40 + 124);
 
-    // URL
-    ctx.fillStyle = config.barColor;
-    ctx.font = 'bold 64px Arial';
-    ctx.fillText('mrcine.pro', width / 2, height * 0.65);
+    // URL with glow background
+    const urlY = height * 0.60;
+    ctx.fillStyle = config.barColor + '30';
+    roundRect(ctx, width / 2 - 280, urlY - 38, 560, 76, 38);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 58px Arial';
+    ctx.fillText('mrcine.pro', width / 2, urlY + 20);
 
     // Subtitle
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '32px Arial';
-    ctx.fillText('Descubra seu perfil cinematográfico!', width / 2, height * 0.65 + 60);
+    ctx.fillStyle = '#cccccc';
+    ctx.font = '30px Arial';
+    ctx.fillText('Descubra seu perfil cinematografico!', width / 2, urlY + 72);
 
-    // Code hint
-    if (option.texto_barra) {
-      ctx.fillStyle = '#666666';
-      ctx.font = '28px Arial';
-      ctx.fillText(`Código: ${option.texto_barra.toLowerCase()}`, width / 2, height * 0.8);
+    // SECRET CODE - Highlighted prominently
+    if (secretCode) {
+      const codeY = height * 0.78;
+      // Code container with border
+      ctx.fillStyle = config.barColor + '25';
+      roundRect(ctx, width / 2 - 250, codeY - 35, 500, 100, 20);
+      ctx.fill();
+      ctx.strokeStyle = config.barColor + '80';
+      ctx.lineWidth = 2;
+      roundRect(ctx, width / 2 - 250, codeY - 35, 500, 100, 20);
+      ctx.stroke();
+
+      // "Codigo secreto" label
+      ctx.fillStyle = '#aaaaaa';
+      ctx.font = '22px Arial';
+      ctx.fillText('CODIGO SECRETO', width / 2, codeY);
+
+      // The actual code - big and bold
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 42px Arial';
+      ctx.fillText(secretCode.toUpperCase(), width / 2, codeY + 45);
     }
+
+    // Footer hashtag
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '22px Arial';
+    ctx.fillText('@mrcine  #MrCinePro', width / 2, height - 35);
   } else if (movie) {
     // ─── Movie Slide ───
-    // Top bar
-    const barHeight = 90;
-    ctx.fillStyle = config.barColor;
+    // Top bar with gradient
+    const barHeight = 85;
+    const barGrad = ctx.createLinearGradient(0, 0, width, 0);
+    barGrad.addColorStop(0, config.barColor);
+    barGrad.addColorStop(1, config.accentColor);
+    ctx.fillStyle = barGrad;
     ctx.fillRect(0, 0, width, barHeight);
 
     // Bar text
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px Arial';
+    ctx.font = 'bold 34px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText(option.texto_barra, width / 2, barHeight / 2 + 12);
+    ctx.fillText(option.texto_barra, width / 2, barHeight / 2 + 11);
 
-    // Poster area
-    const posterW = 500;
-    const posterH = 750;
+    // Position badge (top-left, overlapping poster)
+    const badgeSize = 56;
+    const badgeX = 60;
+    const badgeY = barHeight + 30;
+    ctx.fillStyle = config.barColor;
+    ctx.beginPath();
+    ctx.arc(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Badge border glow
+    ctx.shadowColor = config.barColor;
+    ctx.shadowBlur = 15;
+    ctx.beginPath();
+    ctx.arc(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 30px Arial';
+    ctx.fillText(`#${index + 1}`, badgeX + badgeSize / 2, badgeY + badgeSize / 2 + 10);
+
+    // Poster area — larger!
+    const posterW = 560;
+    const posterH = 840;
     const posterX = (width - posterW) / 2;
-    const posterY = barHeight + 40;
+    const posterY = barHeight + 25;
 
     // Poster shadow
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 10;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 8;
     ctx.fillStyle = '#222222';
     roundRect(ctx, posterX, posterY, posterW, posterH, 16);
     ctx.fill();
@@ -203,7 +262,7 @@ async function generateSlideImage(
         ctx.fill();
         ctx.fillStyle = '#666666';
         ctx.font = '80px Arial';
-        ctx.fillText('🎬', width / 2, posterY + posterH / 2 + 25);
+        ctx.fillText('\uD83C\uDFAC', width / 2, posterY + posterH / 2 + 25);
       }
     } catch {
       ctx.fillStyle = '#333333';
@@ -211,53 +270,79 @@ async function generateSlideImage(
       ctx.fill();
       ctx.fillStyle = '#666666';
       ctx.font = '80px Arial';
-      ctx.fillText('🎬', width / 2, posterY + posterH / 2 + 25);
+      ctx.fillText('\uD83C\uDFAC', width / 2, posterY + posterH / 2 + 25);
     }
 
-    // Position badge
-    const badgeY = posterY + posterH + 30;
-    ctx.fillStyle = config.barColor;
-    ctx.beginPath();
-    ctx.arc(width / 2, badgeY + 25, 32, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 32px Arial';
-    ctx.fillText(`#${index + 1}`, width / 2, badgeY + 35);
+    // Text area below poster
+    const textStartY = posterY + posterH + 25;
+    ctx.textAlign = 'center';
 
     // Movie title
-    const titleY = badgeY + 80;
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 40px Arial';
-    ctx.textAlign = 'center';
-    // Word wrap for title
-    const maxWidth = width - 80;
+    ctx.font = 'bold 42px Arial';
+    const maxWidth = width - 100;
     const words = movie.title.split(' ');
     let line = '';
-    let lineY = titleY;
+    let lineY = textStartY;
+    const titleLines: string[] = [];
     for (const word of words) {
       const testLine = line + word + ' ';
       if (ctx.measureText(testLine).width > maxWidth && line !== '') {
-        ctx.fillText(line.trim(), width / 2, lineY);
+        titleLines.push(line.trim());
         line = word + ' ';
-        lineY += 50;
       } else {
         line = testLine;
       }
     }
-    ctx.fillText(line.trim(), width / 2, lineY);
+    titleLines.push(line.trim());
+    for (const tl of titleLines) {
+      ctx.fillText(tl, width / 2, lineY);
+      lineY += 52;
+    }
 
     // Year + Rating
-    const infoY = lineY + 55;
-    ctx.fillStyle = '#aaaaaa';
-    ctx.font = '30px Arial';
+    const infoY = lineY + 15;
+    ctx.fillStyle = '#bbbbbb';
+    ctx.font = '28px Arial';
     const year = movie.release_date ? movie.release_date.slice(0, 4) : '';
-    const rating = movie.vote_average > 0 ? `⭐ ${movie.vote_average.toFixed(1)}` : '';
-    ctx.fillText(`${year}${year && rating ? '  •  ' : ''}${rating}`, width / 2, infoY);
+    const rating = movie.vote_average > 0 ? `\u2B50 ${movie.vote_average.toFixed(1)}` : '';
+    ctx.fillText(`${year}${year && rating ? '  \u2022  ' : ''}${rating}`, width / 2, infoY);
 
-    // Watermark
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.font = '24px Arial';
-    ctx.fillText('@mrcine.pro', width / 2, height - 40);
+    // Short synopsis (2-3 lines max)
+    if (movie.overview) {
+      const synopsisY = infoY + 40;
+      ctx.fillStyle = '#999999';
+      ctx.font = '24px Arial';
+      const synopsisMaxWidth = width - 120;
+      const synopsisWords = movie.overview.split(' ');
+      let sLine = '';
+      let sLineY = synopsisY;
+      let sLineCount = 0;
+      for (const word of synopsisWords) {
+        if (sLineCount >= 3) break;
+        const testLine = sLine + word + ' ';
+        if (ctx.measureText(testLine).width > synopsisMaxWidth && sLine !== '') {
+          ctx.fillText(sLine.trim(), width / 2, sLineY);
+          sLine = word + ' ';
+          sLineY += 32;
+          sLineCount++;
+        } else {
+          sLine = testLine;
+        }
+      }
+      if (sLineCount < 3 && sLine.trim()) {
+        // Add ellipsis if truncated
+        let finalLine = sLine.trim();
+        if (synopsisWords.length > 15) finalLine += '...';
+        ctx.fillText(finalLine, width / 2, sLineY);
+      }
+    }
+
+    // Watermark + hashtag
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.font = '22px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('@mrcine  #MrCinePro', width / 2, height - 35);
   }
 
   return new Promise((resolve, reject) => {
@@ -374,12 +459,12 @@ export default function ContentCreator({ adminPassword }: ContentCreatorProps) {
 
       // Generate movie slides
       for (let i = 0; i < movies.length; i++) {
-        const blob = await generateSlideImage(movies[i], i, false, option, template, format);
+        const blob = await generateSlideImage(movies[i], i, false, option, template, format, secretCodeValue);
         blobs.push(blob);
       }
 
       // Generate CTA slide (always the last one)
-      const ctaBlob = await generateSlideImage(null, 0, true, option, template, format);
+      const ctaBlob = await generateSlideImage(null, 0, true, option, template, format, secretCodeValue);
       blobs.push(ctaBlob);
 
       setGeneratedImages(blobs);
