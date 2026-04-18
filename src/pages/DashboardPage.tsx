@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2, Wand2 } from 'lucide-react';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
+import ContentCreator from '../components/content/ContentCreator';
 
 // Admin password is validated server-side only (admin-stats edge function).
 // The frontend never stores or compares the actual password.
@@ -43,7 +44,7 @@ interface SubscriptionRow {
   updated_at: string | null;
 }
 
-type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes';
+type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes' | 'content';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -301,6 +302,7 @@ export default function DashboardPage() {
     { id: 'responses', label: 'Respostas', icon: Mail },
     { id: 'profiles', label: 'Usuários', icon: Users },
     { id: 'codes', label: 'Códigos', icon: Key },
+    { id: 'content', label: 'Criador', icon: Wand2 },
   ];
 
   const funnelData = funnelSteps();
@@ -700,6 +702,11 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+        )}
+
+        {/* Content Creator Tab */}
+        {activeTab === 'content' && (
+          <ContentCreator adminPassword={password} />
         )}
       </main>
     </div>

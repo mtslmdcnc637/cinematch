@@ -36,7 +36,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
  * The apikey (anon key) is sufficient for these.
  * admin-stats uses its own admin_password auth, not JWT.
  */
-const PUBLIC_FUNCTIONS = new Set(['tmdb-proxy', 'admin-stats']);
+const PUBLIC_FUNCTIONS = new Set(['tmdb-proxy', 'admin-stats', 'content-gen']);
 
 // ── Refresh Mutex ────────────────────────────────────────────────────────────
 // Prevents concurrent refreshSession() calls that would cause refresh-token
