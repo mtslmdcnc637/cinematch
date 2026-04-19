@@ -39,7 +39,7 @@ interface MovieDetails {
 
 type Step = 'prompt' | 'choosing' | 'preview' | 'done';
 
-type TemplateStyle = 'neon' | 'minimal' | 'gradient' | 'cinematic';
+type TemplateStyle = 'neon' | 'minimal' | 'gradient' | 'cinematic' | 'sunset' | 'ocean';
 type PlatformFormat = 'instagram' | 'tiktok';
 
 // ─── Template configs ─────────────────────────────────────────────────────────
@@ -49,6 +49,8 @@ const TEMPLATE_CONFIGS: Record<TemplateStyle, { name: string; bgGradient: string
   minimal: { name: 'Minimal', bgGradient: 'linear-gradient(180deg, #111111 0%, #1a1a1a 50%, #111111 100%)', barColor: '#ffffff', textColor: '#ffffff', accentColor: '#888888' },
   gradient: { name: 'Gradient', bgGradient: 'linear-gradient(180deg, #1a0533 0%, #2d1b69 50%, #1a0533 100%)', barColor: '#7c3aed', textColor: '#ffffff', accentColor: '#f472b6' },
   cinematic: { name: 'Cinematic', bgGradient: 'linear-gradient(180deg, #0c0c0c 0%, #1a0a0a 50%, #0c0c0c 100%)', barColor: '#dc2626', textColor: '#ffffff', accentColor: '#ef4444' },
+  sunset: { name: 'Sunset', bgGradient: 'linear-gradient(180deg, #1a0a0a 0%, #2d1b0a 50%, #1a0a0a 100%)', barColor: '#f59e0b', textColor: '#ffffff', accentColor: '#fb923c' },
+  ocean: { name: 'Ocean', bgGradient: 'linear-gradient(180deg, #0a0a1a 0%, #0a1a2d 50%, #0a0a1a 100%)', barColor: '#06b6d4', textColor: '#ffffff', accentColor: '#67e8f9' },
 };
 
 // ─── Canvas Image Generator ───────────────────────────────────────────────────
@@ -95,153 +97,251 @@ async function generateSlideImage(
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
 
-  // ─── Background ───
+  // ─── Background with enhanced gradients ───
   const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
   if (template === 'neon') {
-    bgGrad.addColorStop(0, '#0a0a1a');
-    bgGrad.addColorStop(0.4, '#1a0a2e');
-    bgGrad.addColorStop(0.8, '#120828');
-    bgGrad.addColorStop(1, '#0a0a1a');
+    bgGrad.addColorStop(0, '#0f0f23');
+    bgGrad.addColorStop(0.3, '#1a0a2e');
+    bgGrad.addColorStop(0.6, '#2d1b4e');
+    bgGrad.addColorStop(0.8, '#1a0a2e');
+    bgGrad.addColorStop(1, '#0f0f23');
   } else if (template === 'minimal') {
-    bgGrad.addColorStop(0, '#111111');
-    bgGrad.addColorStop(0.5, '#1a1a1a');
-    bgGrad.addColorStop(1, '#111111');
+    bgGrad.addColorStop(0, '#0a0a0a');
+    bgGrad.addColorStop(0.4, '#141414');
+    bgGrad.addColorStop(0.7, '#1a1a1a');
+    bgGrad.addColorStop(1, '#0a0a0a');
   } else if (template === 'gradient') {
     bgGrad.addColorStop(0, '#1a0533');
-    bgGrad.addColorStop(0.4, '#2d1b69');
-    bgGrad.addColorStop(0.8, '#1a0a3d');
+    bgGrad.addColorStop(0.3, '#3d1b69');
+    bgGrad.addColorStop(0.6, '#5a2d8a');
+    bgGrad.addColorStop(0.8, '#2d1b4e');
     bgGrad.addColorStop(1, '#1a0533');
+  } else if (template === 'cinematic') {
+    bgGrad.addColorStop(0, '#0a0a0a');
+    bgGrad.addColorStop(0.3, '#1a0a0a');
+    bgGrad.addColorStop(0.6, '#2d1212');
+    bgGrad.addColorStop(0.8, '#1a0a0a');
+    bgGrad.addColorStop(1, '#0a0a0a');
+  } else if (template === 'sunset') {
+    bgGrad.addColorStop(0, '#1a0a0a');
+    bgGrad.addColorStop(0.3, '#2d1b0a');
+    bgGrad.addColorStop(0.6, '#3d280a');
+    bgGrad.addColorStop(0.8, '#2d1b0a');
+    bgGrad.addColorStop(1, '#1a0a0a');
+  } else if (template === 'ocean') {
+    bgGrad.addColorStop(0, '#0a0f1a');
+    bgGrad.addColorStop(0.3, '#0a1a2d');
+    bgGrad.addColorStop(0.6, '#0a2d3d');
+    bgGrad.addColorStop(0.8, '#0a1a2d');
+    bgGrad.addColorStop(1, '#0a0f1a');
   } else {
-    bgGrad.addColorStop(0, '#0c0c0c');
-    bgGrad.addColorStop(0.4, '#1a0a0a');
-    bgGrad.addColorStop(0.8, '#120808');
-    bgGrad.addColorStop(1, '#0c0c0c');
+    bgGrad.addColorStop(0, '#0a0a0a');
+    bgGrad.addColorStop(0.3, '#1a0a0a');
+    bgGrad.addColorStop(0.6, '#2d1212');
+    bgGrad.addColorStop(0.8, '#1a0a0a');
+    bgGrad.addColorStop(1, '#0a0a0a');
   }
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // Subtle decorative glow at center
-  const glowGrad = ctx.createRadialGradient(width / 2, height * 0.45, 0, width / 2, height * 0.45, 500);
-  glowGrad.addColorStop(0, config.barColor + '15');
-  glowGrad.addColorStop(1, 'transparent');
-  ctx.fillStyle = glowGrad;
+  // Enhanced multi-layer glow effects
+  const glowGrad1 = ctx.createRadialGradient(width / 2, height * 0.35, 0, width / 2, height * 0.35, 600);
+  glowGrad1.addColorStop(0, config.barColor + '20');
+  glowGrad1.addColorStop(0.5, config.barColor + '08');
+  glowGrad1.addColorStop(1, 'transparent');
+  ctx.fillStyle = glowGrad1;
+  ctx.fillRect(0, 0, width, height);
+
+  const glowGrad2 = ctx.createRadialGradient(width * 0.7, height * 0.6, 0, width * 0.7, height * 0.6, 400);
+  glowGrad2.addColorStop(0, config.accentColor + '15');
+  glowGrad2.addColorStop(1, 'transparent');
+  ctx.fillStyle = glowGrad2;
   ctx.fillRect(0, 0, width, height);
 
   if (isCTA) {
     // ─── CTA Slide ───
-    // Decorative circles
-    ctx.globalAlpha = 0.06;
-    ctx.fillStyle = config.barColor;
+    // Enhanced decorative elements with gradients
+    const decoGrad1 = ctx.createRadialGradient(width / 2, height * 0.25, 0, width / 2, height * 0.25, 400);
+    decoGrad1.addColorStop(0, config.barColor + '25');
+    decoGrad1.addColorStop(1, 'transparent');
+    ctx.fillStyle = decoGrad1;
     ctx.beginPath();
-    ctx.arc(width / 2, height * 0.25, 350, 0, Math.PI * 2);
+    ctx.arc(width / 2, height * 0.25, 400, 0, Math.PI * 2);
     ctx.fill();
+
+    const decoGrad2 = ctx.createRadialGradient(width / 2, height * 0.75, 0, width / 2, height * 0.75, 300);
+    decoGrad2.addColorStop(0, config.accentColor + '20');
+    decoGrad2.addColorStop(1, 'transparent');
+    ctx.fillStyle = decoGrad2;
     ctx.beginPath();
-    ctx.arc(width / 2, height * 0.75, 250, 0, Math.PI * 2);
+    ctx.arc(width / 2, height * 0.75, 300, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 1;
 
-    // Film icon
-    ctx.fillStyle = config.barColor;
-    ctx.font = 'bold 80px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('\uD83C\uDFAC', width / 2, height * 0.28);
-
-    // Main CTA text
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 48px Arial';
-    ctx.fillText('Quer saber quais', width / 2, height * 0.40);
-    ctx.fillText('filmes sao perfeitos', width / 2, height * 0.40 + 62);
-    ctx.fillText('pra VOCE?', width / 2, height * 0.40 + 124);
-
-    // URL with glow background
-    const urlY = height * 0.60;
-    ctx.fillStyle = config.barColor + '30';
-    roundRect(ctx, width / 2 - 280, urlY - 38, 560, 76, 38);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 58px Arial';
-    ctx.fillText('mrcine.pro', width / 2, urlY + 20);
-
-    // Subtitle
-    ctx.fillStyle = '#cccccc';
-    ctx.font = '30px Arial';
-    ctx.fillText('Descubra seu perfil cinematografico!', width / 2, urlY + 72);
-
-    // SECRET CODE - Highlighted prominently
-    if (secretCode) {
-      const codeY = height * 0.78;
-      // Code container with border
-      ctx.fillStyle = config.barColor + '25';
-      roundRect(ctx, width / 2 - 250, codeY - 35, 500, 100, 20);
-      ctx.fill();
-      ctx.strokeStyle = config.barColor + '80';
-      ctx.lineWidth = 2;
-      roundRect(ctx, width / 2 - 250, codeY - 35, 500, 100, 20);
-      ctx.stroke();
-
-      // "Codigo secreto" label
-      ctx.fillStyle = '#aaaaaa';
-      ctx.font = '22px Arial';
-      ctx.fillText('CODIGO SECRETO', width / 2, codeY);
-
-      // The actual code - big and bold
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 42px Arial';
-      ctx.fillText(secretCode.toUpperCase(), width / 2, codeY + 45);
-    }
-
-    // Footer hashtag
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.font = '22px Arial';
-    ctx.fillText('@mrcine  #MrCinePro', width / 2, height - 35);
-  } else if (movie) {
-    // ─── Movie Slide ───
-    // Top bar with gradient
-    const barHeight = 85;
-    const barGrad = ctx.createLinearGradient(0, 0, width, 0);
-    barGrad.addColorStop(0, config.barColor);
-    barGrad.addColorStop(1, config.accentColor);
-    ctx.fillStyle = barGrad;
-    ctx.fillRect(0, 0, width, barHeight);
-
-    // Bar text
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 34px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText(option.texto_barra, width / 2, barHeight / 2 + 11);
-
-    // Position badge (top-left, overlapping poster)
-    const badgeSize = 56;
-    const badgeX = 60;
-    const badgeY = barHeight + 30;
-    ctx.fillStyle = config.barColor;
-    ctx.beginPath();
-    ctx.arc(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-    // Badge border glow
+    // Film icon with glow
     ctx.shadowColor = config.barColor;
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.arc(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2);
+    ctx.shadowBlur = 30;
+    ctx.fillStyle = config.barColor;
+    ctx.font = 'bold 90px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('\\uD83C\\uDFAC', width / 2, height * 0.26);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    // Main CTA text with better spacing
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 52px Arial';
+    ctx.fillText('Quer saber quais', width / 2, height * 0.38);
+    ctx.font = 'bold 56px Arial';
+    ctx.fillText('filmes sao perfeitos', width / 2, height * 0.38 + 68);
+    ctx.fillStyle = config.accentColor;
+    ctx.fillText('pra VOCE?', width / 2, height * 0.38 + 138);
+
+    // URL with enhanced glow background
+    const urlY = height * 0.58;
+    // Outer glow
+    ctx.shadowColor = config.barColor;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = config.barColor + '40';
+    roundRect(ctx, width / 2 - 290, urlY - 42, 580, 84, 42);
     ctx.fill();
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
+    
+    // Inner fill
+    ctx.fillStyle = config.barColor + '25';
+    roundRect(ctx, width / 2 - 285, urlY - 37, 570, 74, 37);
+    ctx.fill();
+    
+    // URL text with gradient
+    const urlGrad = ctx.createLinearGradient(width / 2 - 200, urlY, width / 2 + 200, urlY);
+    urlGrad.addColorStop(0, '#ffffff');
+    urlGrad.addColorStop(0.5, config.accentColor);
+    urlGrad.addColorStop(1, '#ffffff');
+    ctx.fillStyle = urlGrad;
+    ctx.font = 'bold 62px Arial';
+    ctx.fillText('mrcine.pro', width / 2, urlY + 24);
+
+    // Subtitle
+    ctx.fillStyle = '#bbbbbb';
+    ctx.font = '32px Arial';
+    ctx.fillText('Descubra seu perfil cinematografico!', width / 2, urlY + 80);
+
+    // SECRET CODE - Enhanced highlight
+    if (secretCode) {
+      const codeY = height * 0.76;
+      // Code container with enhanced glow and border
+      ctx.shadowColor = config.barColor;
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = config.barColor + '30';
+      roundRect(ctx, width / 2 - 260, codeY - 40, 520, 110, 24);
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      
+      // Gradient border
+      const borderGrad = ctx.createLinearGradient(width / 2 - 260, codeY - 40, width / 2 + 260, codeY + 70);
+      borderGrad.addColorStop(0, config.barColor + '90');
+      borderGrad.addColorStop(0.5, config.accentColor + '90');
+      borderGrad.addColorStop(1, config.barColor + '90');
+      ctx.strokeStyle = borderGrad;
+      ctx.lineWidth = 3;
+      roundRect(ctx, width / 2 - 260, codeY - 40, 520, 110, 24);
+      ctx.stroke();
+
+      // "Codigo secreto" label
+      ctx.fillStyle = '#cccccc';
+      ctx.font = 'bold 24px Arial';
+      ctx.fillText('CODIGO SECRETO', width / 2, codeY - 5);
+
+      // The actual code - bigger and bolder with glow
+      ctx.shadowColor = config.accentColor;
+      ctx.shadowBlur = 15;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 48px monospace';
+      ctx.fillText(secretCode.toUpperCase(), width / 2, codeY + 45);
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+    }
+
+    // Footer hashtag
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = 'bold 24px Arial';
+    ctx.fillText('@mrcine  |  #MrCinePro', width / 2, height - 40);
+  } else if (movie) {
+    // ─── Movie Slide ───
+    
+    // Top bar with enhanced gradient and glow
+    const barHeight = 90;
+    const barGrad = ctx.createLinearGradient(0, 0, width, 0);
+    barGrad.addColorStop(0, config.barColor);
+    barGrad.addColorStop(0.5, config.accentColor);
+    barGrad.addColorStop(1, config.barColor);
+    ctx.fillStyle = barGrad;
+    
+    // Bar glow effect
+    ctx.shadowColor = config.barColor;
+    ctx.shadowBlur = 20;
+    ctx.fillRect(0, 0, width, barHeight);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    
+    // Bar text with shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 2;
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 30px Arial';
-    ctx.fillText(`#${index + 1}`, badgeX + badgeSize / 2, badgeY + badgeSize / 2 + 10);
+    ctx.font = 'bold 38px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(option.texto_barra, width / 2, barHeight / 2 + 13);
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
 
-    // Poster area — larger!
-    const posterW = 560;
-    const posterH = 840;
+    // Position badge (top-left, overlapping poster) - Enhanced
+    const badgeSize = 64;
+    const badgeX = 50;
+    const badgeY = barHeight + 20;
+    
+    // Badge outer glow
+    ctx.shadowColor = config.barColor;
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = config.barColor;
+    ctx.beginPath();
+    ctx.arc(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Badge inner gradient
+    const badgeGrad = ctx.createRadialGradient(
+      badgeX + badgeSize / 2, badgeY + badgeSize / 2, 0,
+      badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2
+    );
+    badgeGrad.addColorStop(0, config.accentColor);
+    badgeGrad.addColorStop(1, config.barColor);
+    ctx.fillStyle = badgeGrad;
+    ctx.beginPath();
+    ctx.arc(badgeX + badgeSize / 2, badgeY + badgeSize / 2, badgeSize / 2 - 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    
+    // Badge number
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 34px Arial';
+    ctx.fillText(`#${index + 1}`, badgeX + badgeSize / 2, badgeY + badgeSize / 2 + 12);
+
+    // Poster area - Enhanced with better proportions for Instagram
+    const posterW = 520;
+    const posterH = 780;
     const posterX = (width - posterW) / 2;
-    const posterY = barHeight + 25;
+    const posterY = barHeight + 20;
 
-    // Poster shadow
-    ctx.shadowColor = 'rgba(0,0,0,0.6)';
-    ctx.shadowBlur = 40;
-    ctx.shadowOffsetY = 8;
-    ctx.fillStyle = '#222222';
-    roundRect(ctx, posterX, posterY, posterW, posterH, 16);
+    // Poster shadow - deeper and more elegant
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 12;
+    ctx.fillStyle = '#1a1a1a';
+    roundRect(ctx, posterX, posterY, posterW, posterH, 20);
     ctx.fill();
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
@@ -252,35 +352,48 @@ async function generateSlideImage(
       if (movie.poster_path) {
         const posterImg = await loadImage(`https://image.tmdb.org/t/p/w500${movie.poster_path}`);
         ctx.save();
-        roundRect(ctx, posterX, posterY, posterW, posterH, 16);
+        roundRect(ctx, posterX, posterY, posterW, posterH, 20);
         ctx.clip();
+        
+        // Draw image with slight brightness boost
+        ctx.filter = 'brightness(1.05) contrast(1.05)';
         ctx.drawImage(posterImg, posterX, posterY, posterW, posterH);
+        ctx.filter = 'none';
+        
+        // Add subtle overlay gradient for depth
+        const overlayGrad = ctx.createLinearGradient(posterX, posterY, posterX, posterY + posterH);
+        overlayGrad.addColorStop(0, 'rgba(0,0,0,0)');
+        overlayGrad.addColorStop(0.7, 'rgba(0,0,0,0.1)');
+        overlayGrad.addColorStop(1, 'rgba(0,0,0,0.3)');
+        ctx.fillStyle = overlayGrad;
+        ctx.fillRect(posterX, posterY, posterW, posterH);
+        
         ctx.restore();
       } else {
-        ctx.fillStyle = '#333333';
-        roundRect(ctx, posterX, posterY, posterW, posterH, 16);
+        ctx.fillStyle = '#2a2a2a';
+        roundRect(ctx, posterX, posterY, posterW, posterH, 20);
         ctx.fill();
-        ctx.fillStyle = '#666666';
-        ctx.font = '80px Arial';
-        ctx.fillText('\uD83C\uDFAC', width / 2, posterY + posterH / 2 + 25);
+        ctx.fillStyle = '#555555';
+        ctx.font = '90px Arial';
+        ctx.fillText('\\uD83C\\uDFAC', width / 2, posterY + posterH / 2 + 30);
       }
     } catch {
-      ctx.fillStyle = '#333333';
-      roundRect(ctx, posterX, posterY, posterW, posterH, 16);
+      ctx.fillStyle = '#2a2a2a';
+      roundRect(ctx, posterX, posterY, posterW, posterH, 20);
       ctx.fill();
-      ctx.fillStyle = '#666666';
-      ctx.font = '80px Arial';
-      ctx.fillText('\uD83C\uDFAC', width / 2, posterY + posterH / 2 + 25);
+      ctx.fillStyle = '#555555';
+      ctx.font = '90px Arial';
+      ctx.fillText('\\uD83C\\uDFAC', width / 2, posterY + posterH / 2 + 30);
     }
 
     // Text area below poster
-    const textStartY = posterY + posterH + 25;
+    const textStartY = posterY + posterH + 30;
     ctx.textAlign = 'center';
 
-    // Movie title
+    // Movie title - Larger and bolder for Instagram
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 42px Arial';
-    const maxWidth = width - 100;
+    ctx.font = 'bold 48px Arial';
+    const maxWidth = width - 80;
     const words = movie.title.split(' ');
     let line = '';
     let lineY = textStartY;
@@ -295,25 +408,68 @@ async function generateSlideImage(
       }
     }
     titleLines.push(line.trim());
+    
+    // Title with shadow for better readability
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 3;
     for (const tl of titleLines) {
       ctx.fillText(tl, width / 2, lineY);
-      lineY += 52;
+      lineY += 58;
+    }
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Year + Rating - Enhanced with badges
+    const infoY = lineY + 20;
+    const year = movie.release_date ? movie.release_date.slice(0, 4) : '';
+    const rating = movie.vote_average > 0 ? movie.vote_average.toFixed(1) : '';
+    
+    if (year || rating) {
+      // Year badge
+      if (year) {
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        const yearWidth = ctx.measureText(year).width + 30;
+        roundRect(ctx, width / 2 - yearWidth / 2 - (rating ? 60 : 0), infoY - 20, yearWidth, 40, 20);
+        ctx.fill();
+        ctx.fillStyle = '#cccccc';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText(year, width / 2 - (rating ? 60 : 0), infoY + 6);
+      }
+      
+      // Separator
+      if (year && rating) {
+        ctx.fillStyle = config.accentColor;
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText('•', width / 2, infoY + 6);
+      }
+      
+      // Rating badge with star
+      if (rating) {
+        const ratingBgWidth = ctx.measureText(rating).width + 50;
+        ctx.fillStyle = config.barColor + '30';
+        roundRect(ctx, width / 2 - ratingBgWidth / 2 + (year ? 60 : 0), infoY - 20, ratingBgWidth, 40, 20);
+        ctx.fill();
+        
+        // Star icon
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = 'bold 28px Arial';
+        ctx.fillText('⭐', width / 2 - 15 + (year ? 60 : 0), infoY + 8);
+        
+        // Rating number
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText(rating, width / 2 + 20 + (year ? 60 : 0), infoY + 6);
+      }
     }
 
-    // Year + Rating
-    const infoY = lineY + 15;
-    ctx.fillStyle = '#bbbbbb';
-    ctx.font = '28px Arial';
-    const year = movie.release_date ? movie.release_date.slice(0, 4) : '';
-    const rating = movie.vote_average > 0 ? `\u2B50 ${movie.vote_average.toFixed(1)}` : '';
-    ctx.fillText(`${year}${year && rating ? '  \u2022  ' : ''}${rating}`, width / 2, infoY);
-
-    // Short synopsis (2-3 lines max)
+    // Short synopsis (2-3 lines max) - Better formatting
     if (movie.overview) {
-      const synopsisY = infoY + 40;
-      ctx.fillStyle = '#999999';
-      ctx.font = '24px Arial';
-      const synopsisMaxWidth = width - 120;
+      const synopsisY = infoY + 50;
+      ctx.fillStyle = '#aaaaaa';
+      ctx.font = '26px Arial';
+      const synopsisMaxWidth = width - 100;
       const synopsisWords = movie.overview.split(' ');
       let sLine = '';
       let sLineY = synopsisY;
@@ -324,7 +480,7 @@ async function generateSlideImage(
         if (ctx.measureText(testLine).width > synopsisMaxWidth && sLine !== '') {
           ctx.fillText(sLine.trim(), width / 2, sLineY);
           sLine = word + ' ';
-          sLineY += 32;
+          sLineY += 36;
           sLineCount++;
         } else {
           sLine = testLine;
@@ -338,11 +494,11 @@ async function generateSlideImage(
       }
     }
 
-    // Watermark + hashtag
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.font = '22px Arial';
+    // Enhanced Watermark + hashtag
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.font = 'bold 24px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('@mrcine  #MrCinePro', width / 2, height - 35);
+    ctx.fillText('@mrcine  |  #MrCinePro', width / 2, height - 40);
   }
 
   return new Promise((resolve, reject) => {
@@ -483,32 +639,49 @@ export default function ContentCreator({ adminPassword }: ContentCreatorProps) {
     }
   }, [template, format]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Download all images as individual files
+  // Download all images as individual files with better naming
   const handleDownloadAll = () => {
+    if (generatedImages.length === 0) return;
+    
+    const option = options[selectedOption];
+    const safeTitle = option.titulo.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30).replace(/^-|-$/g, '');
+    const timestamp = new Date().toISOString().slice(0, 10);
+    
     generatedImages.forEach((blob, i) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `mrcine_${i + 1}${i === generatedImages.length - 1 ? '_cta' : ''}.png`;
+      const isCTA = i === generatedImages.length - 1;
+      const movieName = movies[i]?.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20) || 'cta';
+      a.download = `mrcine-${timestamp}-${safeTitle}-${isCTA ? 'cta' : `${i + 1}-${movieName}`}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     });
-    toast.success(`${generatedImages.length} imagens baixadas!`);
+    toast.success(`${generatedImages.length} imagens baixadas com sucesso!`);
   };
 
-  // Download single image
+  // Download single image with better naming
   const handleDownloadOne = (index: number) => {
+    if (!generatedImages[index]) return;
+    
     const blob = generatedImages[index];
+    const option = options[selectedOption];
+    const safeTitle = option.titulo.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30).replace(/^-|-$/g, '');
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const isCTA = index === generatedImages.length - 1;
+    const movieName = movies[index]?.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20) || 'cta';
+    
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mrcine_${index + 1}${index === generatedImages.length - 1 ? '_cta' : ''}.png`;
+    a.download = `mrcine-${timestamp}-${safeTitle}-${isCTA ? 'cta' : `${index + 1}-${movieName}`}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    toast.success('Imagem baixada!');
   };
 
   // Save secret code + mark as done
@@ -750,11 +923,21 @@ export default function ContentCreator({ adminPassword }: ContentCreatorProps) {
             </div>
           </div>
 
-          {/* Loading state */}
+          {/* Loading state with progress */}
           {isBuildingImages && (
             <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
               <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-3" />
-              <p className="text-gray-400">Gerando imagens... ({movies.length + 1} slides)</p>
+              <p className="text-gray-400 font-medium">Gerando imagens...</p>
+              <p className="text-gray-500 text-sm mt-1">{movies.length + 1} slides no total</p>
+              <div className="mt-4 flex justify-center gap-2">
+                {Array.from({ length: movies.length + 1 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-3 h-3 rounded-full bg-purple-500/30 animate-pulse"
+                    style={{ animationDelay: `${i * 100}ms` }}
+                  />
+                ))}
+              </div>
             </div>
           )}
 

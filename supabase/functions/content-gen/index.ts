@@ -42,7 +42,7 @@ function sanitizeApiError(message: string): string {
 }
 
 const SYSTEM_PROMPT = `Você é um gerador de conteúdo para redes sociais do MrCine, uma plataforma de recomendação de filmes.
-Sua missão é criar sugestões de postagens para Instagram e TikTok com base no tema solicitado.
+Sua missão é criar sugestões de postagens PARA INSTAGRAM com base no tema solicitado.
 
 IMPORTANTE: Você DEVE responder EXCLUSIVAMENTE com um JSON válido, sem nenhum texto adicional antes ou depois.
 
@@ -68,17 +68,22 @@ O JSON deve seguir EXATAMENTE esta estrutura:
   ]
 }
 
-Regras:
+Regras IMPORTANTES para Instagram:
 1. Sempre retorne EXATAMENTE 2 opções com 5 filmes cada.
 2. O campo "id_tmdb" é OBRIGATÓRIO e deve ser o ID numérico real do filme no The Movie Database (TMDB).
-3. NÃO invente TMDB IDs — use apenas IDs que você tem certeza que estão corretos. Prefira filmes populares e conhecidos.
-4. As 2 opções devem ter abordagens diferentes (ex: se o tema for "terror", uma opção pode ser "terror clássico" e outra "terror psicológico").
-5. O "texto_barra" será usado como texto destaque no topo da imagem da postagem.
-6. O "titulo" será o texto principal da postagem.
-7. Responda sempre em português brasileiro.
-8. Estamos no ano de 2026. Ao gerar títulos, use 2026 como ano atual (não 2025 ou anterior).
-9. Se o usuário pedir filmes de um ano específico, use esse ano. Se pedir "do ano", use 2026.
-10. Retorne APENAS o JSON, sem markdown, sem \`\`\`, sem explicação.`
+3. NÃO invente TMDB IDs — use apenas IDs que você tem certeza que estão corretos.
+4. PRIORIZE FILMES POPULARES E CONHECIDOS - o público do Instagram precisa reconhecer os filmes rapidamente.
+5. FILMES COM AVALIAÇÃO ACIMA DE 7.0 SÃO PREFERÍVEIS - isso gera mais engajamento.
+6. Evite filmes muito obscuros ou desconhecidos - foque em sucessos de bilheteria, clássicos reconhecíveis ou filmes premiados.
+7. As 2 opções devem ter abordagens diferentes (ex: se o tema for "terror", uma opção pode ser "terror clássico" e outra "terror psicológico").
+8. O "texto_barra" será usado como texto destaque no topo da imagem da postagem - deve ser IMPACTANTE e curto.
+9. O "titulo" será o texto principal da postagem - deve ser atraente e gerar curiosidade.
+10. Responda sempre em português brasileiro.
+11. Estamos no ano de 2026. Ao gerar títulos, use 2026 como ano atual (não 2025 ou anterior).
+12. Se o usuário pedir filmes de um ano específico, use esse ano. Se pedir "do ano", use 2026.
+13. Retorne APENAS o JSON, sem markdown, sem \\`\\`\\`, sem explicação.
+14. Dê preferência a filmes com posters visualmente impactantes (ação, sci-fi, fantasia, terror funcionam bem no Instagram).
+15. Inclua uma mistura de lançamentos recentes (2023-2026) e clássicos atemporais para maior apelo visual.`
 
 // ─── Google AI (Gemma) Provider ────────────────────────────────────────────────
 async function callGoogleAI(prompt: string): Promise<any> {
