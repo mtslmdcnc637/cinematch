@@ -6,6 +6,7 @@ import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast, Toaster } from 'sonner';
 import { PRICING_PLANS } from '../config/quizData';
 import { useSubscription } from '../contexts/SubscriptionContext';
+import { getReferralCode } from '../lib/referral';
 
 export default function PricingPage() {
   const navigate = useNavigate();
@@ -46,6 +47,7 @@ export default function PricingPage() {
         plan_id: planId,
         user_id: session.user.id,
         user_email: session.user.email,
+        ref_code: getReferralCode() || undefined,
       });
 
       if (data?.url) {

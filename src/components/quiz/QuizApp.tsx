@@ -9,6 +9,7 @@ import { invokeEdgeFunction } from '../../lib/edgeFunction';
 import { GENRES } from '../../constants';
 import { ProBadge } from '../common/ProBadge';
 import { toast } from 'sonner';
+import { getReferralCode } from '../../lib/referral';
 
 // Map string icon names to actual Lucide components
 const IconMap: Record<string, any> = {
@@ -367,6 +368,7 @@ export default function QuizApp() {
         plan_id: planId,
         user_id: session.user.id,
         user_email: session.user.email || answers.email,
+        ref_code: getReferralCode() || undefined,
       });
 
       if (data?.url) {

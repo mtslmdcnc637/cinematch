@@ -12,6 +12,7 @@ import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './lib/supabase';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { captureReferral } from './lib/referral';
 
 /** Wrapper that pulls :username from the URL and passes it to PublicProfilePage */
 const PublicProfileRoute: React.FC = () => {
@@ -33,6 +34,9 @@ export default function Router() {
   const [userId, setUserId] = useState<string | undefined>();
 
   useEffect(() => {
+    // Capture referral code from URL (?ref=xxx) on first load
+    captureReferral();
+
     if (!supabase) return;
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id);

@@ -110,7 +110,9 @@ serve(async (req) => {
       )
     }
 
-    const { plan_id, user_id, user_email } = await req.json()
+    // ── Parse request body (do this ONCE) ───────────────────────────
+    const body = await req.json()
+    const { plan_id, user_id, user_email, ref_code } = body
 
     // ── Validate inputs & ownership ─────────────────────────────────
     if (!plan_id || !user_id || !user_email) {
@@ -180,6 +182,34 @@ serve(async (req) => {
         )
     }
 
+    // ── Handle referral coupon ───────────────────────────────────────
+    // When a user comes via ?ref=PRODUCER_USERNAME, apply a 15% off coupon.
+    // The coupon is created in Stripe on-the-fly and reused for future
+    // checkouts with the same ref_code. The ref_code is stored in
+    // session metadata for commission tracking via the webhook.
+    let couponId: string | null = null
+    if (ref_code) {
+      // Try to find an existing coupon for this producer
+      // Coupon IDs follow the pattern: mrcine_ref_{ref_code}
+      const couponLookupId = `mrcine_ref_${ref_code.substring(0, 20)}`
+      const existingCoupon = await stripeRequest(`/coupons/${couponLookupId}`, "GET")
+      if (existingCoupon.id) {
+        couponId = existingCoupon.id
+      } else {
+        // Create a new 15% off coupon for this producer
+        const coupon = await stripeRequest("/coupons", "POST", {
+          id: couponLookupId,
+          percent_off: 15,
+          duration: "once",
+          name: "15% OFF - Indicacao MrCine",
+          metadata: { producer_username: ref_code },
+        })
+        if (coupon.id) {
+          couponId = coupon.id
+        }
+      }
+    }
+
     // ── Build Checkout Session params ────────────────────────────────
     const priceId = getPriceId(plan_id)
 
@@ -189,9 +219,15 @@ serve(async (req) => {
       "payment_method_types[0]": "card",
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": 1,
+      locale: "pt-BR",
       success_url: `${Deno.env.get("APP_URL") || "https://mrcine.pro"}/pricing?success=true`,
       cancel_url: `${Deno.env.get("APP_URL") || "https://mrcine.pro"}/pricing?canceled=true`,
-      metadata: { supabase_user_id: user_id, plan_id },
+      metadata: { supabase_user_id: user_id, plan_id, ref_code: ref_code || "" },
+    }
+
+    // Apply referral coupon if available
+    if (couponId) {
+      sessionParams.discounts = [{ coupon: couponId }]
     }
 
     // ── Create the Checkout Session ──────────────────────────────────

@@ -138,6 +138,7 @@ serve(async (req) => {
         const subscriptionId = session.subscription as string
         const userId = session.metadata?.supabase_user_id as string | undefined
         const planId = session.metadata?.plan_id as string | undefined
+        const refCode = session.metadata?.ref_code as string | undefined
 
         if (!userId) {
           console.error("checkout.session.completed: missing supabase_user_id in metadata")
@@ -162,22 +163,26 @@ serve(async (req) => {
           : null
 
         // Upsert subscription in DB
+        const subRecord: Record<string, unknown> = {
+          user_id: userId,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          plan_type: planType,
+          status,
+          current_period_start: periodStart,
+          current_period_end: periodEnd,
+          cancel_at_period_end: false,
+          updated_at: new Date().toISOString(),
+        }
+
+        // Save referral code if present
+        if (refCode) {
+          subRecord.ref_code = refCode
+        }
+
         const { error: subError } = await supabase
           .from("subscriptions")
-          .upsert(
-            {
-              user_id: userId,
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId,
-              plan_type: planType,
-              status,
-              current_period_start: periodStart,
-              current_period_end: periodEnd,
-              cancel_at_period_end: false,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "stripe_subscription_id" }
-          )
+          .upsert(subRecord, { onConflict: "stripe_subscription_id" })
         if (subError) {
           console.error("DB upsert error (checkout):", subError)
           return new Response(
