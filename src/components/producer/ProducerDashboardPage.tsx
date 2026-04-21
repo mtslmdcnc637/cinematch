@@ -6,7 +6,7 @@
  * Stripe Connect integration for producer payouts.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
@@ -44,6 +44,11 @@ import {
   ArrowRight,
   Info,
   Percent,
+  Search,
+  Star,
+  GripVertical,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 import {
@@ -488,7 +493,7 @@ export default function ProducerDashboardPage() {
           )}
           {activeTab === 'lists' && (
             <motion.div key="lists" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
-              <ListsTab lists={lists} sessionToken={sessionToken!} onRefresh={() => loadTabData('lists')} />
+              <ListsTab lists={lists} sessionToken={sessionToken!} producerUsername={producer.username} onRefresh={() => loadTabData('lists')} />
             </motion.div>
           )}
           {activeTab === 'commissions' && (
@@ -808,58 +813,90 @@ function ProfileTab({
 function ListsTab({
   lists,
   sessionToken,
+  producerUsername,
   onRefresh,
 }: {
   lists: ProducerList[];
   sessionToken: string;
+  producerUsername: string;
   onRefresh: () => void;
 }) {
   const [showModal, setShowModal] = useState(false);
   const [editingList, setEditingList] = useState<ProducerList | null>(null);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    movie_ids: '',
-    slug: '',
-  });
+  const [formTitle, setFormTitle] = useState('');
+  const [formDescription, setFormDescription] = useState('');
+  const [formSlug, setFormSlug] = useState('');
+  const [selectedMovies, setSelectedMovies] = useState<Array<{ id: number; title: string; poster_path: string | null; release_date: string }>>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingList, setIsDeletingList] = useState<string | null>(null);
   const [isTogglingList, setIsTogglingList] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [profileLinkCopied, setProfileLinkCopied] = useState(false);
+
+  const profileUrl = `mrcine.pro/p/${producerUsername}`;
+
+  const handleCopyProfileLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`https://${profileUrl}`);
+      setProfileLinkCopied(true);
+      setTimeout(() => setProfileLinkCopied(false), 2000);
+    } catch {
+      toast.error('Não foi possível copiar');
+    }
+  };
 
   const openCreateModal = () => {
     setEditingList(null);
-    setForm({ title: '', description: '', movie_ids: '', slug: '' });
+    setFormTitle('');
+    setFormDescription('');
+    setFormSlug('');
+    setSelectedMovies([]);
     setShowModal(true);
   };
 
   const openEditModal = (list: ProducerList) => {
     setEditingList(list);
-    setForm({
-      title: list.title,
-      description: list.description || '',
-      movie_ids: list.movie_ids?.join(', ') || '',
-      slug: list.slug || '',
-    });
+    setFormTitle(list.title);
+    setFormDescription(list.description || '');
+    setFormSlug(list.slug || '');
+    // For editing, we'll start with just the IDs; the user can search and add more
+    setSelectedMovies(
+      (list.movie_ids || []).map(id => ({
+        id,
+        title: `Filme ${id}`,
+        poster_path: null,
+        release_date: '',
+      }))
+    );
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingList(null);
+    setSelectedMovies([]);
+  };
+
+  const addMovie = (movie: { id: number; title: string; poster_path: string | null; release_date: string }) => {
+    if (selectedMovies.some(m => m.id === movie.id)) {
+      toast.info('Este filme já está na lista');
+      return;
+    }
+    setSelectedMovies(prev => [...prev, movie]);
+  };
+
+  const removeMovie = (movieId: number) => {
+    setSelectedMovies(prev => prev.filter(m => m.id !== movieId));
   };
 
   const handleSaveList = async () => {
-    if (!form.title.trim()) {
+    if (!formTitle.trim()) {
       toast.error('Título é obrigatório');
       return;
     }
 
     setIsSaving(true);
-    const movieIds = form.movie_ids
-      .split(',')
-      .map(s => parseInt(s.trim()))
-      .filter(n => !isNaN(n));
+    const movieIds = selectedMovies.map(m => m.id);
 
     try {
       const url = editingList ? `/api/producer/me/lists/${editingList.id}` : '/api/producer/me/lists';
@@ -872,10 +909,10 @@ function ListsTab({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          title: form.title.trim(),
-          description: form.description.trim() || null,
+          title: formTitle.trim(),
+          description: formDescription.trim() || null,
           movie_ids: movieIds,
-          slug: form.slug.trim() || null,
+          slug: formSlug.trim() || null,
         }),
       });
 
@@ -940,6 +977,44 @@ function ListsTab({
 
   return (
     <div className="space-y-6">
+      {/* Public Profile Link Card */}
+      <div className="bg-gradient-to-r from-purple-900/30 to-fuchsia-900/20 border border-purple-500/20 rounded-2xl p-5">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
+            <ExternalLink className="w-5 h-5 text-purple-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-bold text-sm text-purple-200">Seu Perfil Público</h4>
+            <p className="text-xs text-gray-400 mt-0.5 mb-2">Compartilhe este link para que seguidores vejam suas listas e usem seu cupom de 15%:</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-purple-300 text-sm font-mono truncate">
+                {profileUrl}
+              </code>
+              <button
+                onClick={handleCopyProfileLink}
+                className={`shrink-0 p-2 rounded-lg border transition-all ${
+                  profileLinkCopied
+                    ? 'bg-green-500/10 border-green-500/20 text-green-400'
+                    : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+                title="Copiar link"
+              >
+                {profileLinkCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+              <a
+                href={`/p/${producerUsername}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 p-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                title="Abrir perfil"
+              >
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Header + Create button */}
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-lg">Suas Listas ({lists.length})</h3>
@@ -988,12 +1063,6 @@ function ListsTab({
                       <Film className="w-3 h-3" />
                       {list.movie_ids?.length || 0} filmes
                     </span>
-                    {list.slug && (
-                      <span className="flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" />
-                        /p/{list.slug}
-                      </span>
-                    )}
                     <span>{formatDate(list.created_at)}</span>
                   </div>
                 </div>
@@ -1108,8 +1177,8 @@ function ListsTab({
                   <label className="block text-sm text-gray-400 mb-1.5 font-medium">Título *</label>
                   <input
                     type="text"
-                    value={form.title}
-                    onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
                     className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 transition-all"
                     placeholder="Ex: Top 10 Filmes de Terror"
                     autoFocus
@@ -1118,32 +1187,31 @@ function ListsTab({
                 <div>
                   <label className="block text-sm text-gray-400 mb-1.5 font-medium">Descrição</label>
                   <textarea
-                    value={form.description}
-                    onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    rows={2}
                     className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 transition-all resize-none"
                     placeholder="Descrição da lista..."
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1.5 font-medium">IDs dos Filmes (TMDB)</label>
-                  <input
-                    type="text"
-                    value={form.movie_ids}
-                    onChange={(e) => setForm(prev => ({ ...prev, movie_ids: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 transition-all font-mono text-sm"
-                    placeholder="IDs separados por vírgula, ex: 574475, 414429, 447365"
-                  />
-                  <p className="text-xs text-gray-600 mt-1">Encontre o ID no themoviedb.org/movie/[ID]</p>
-                </div>
-                <div>
                   <label className="block text-sm text-gray-400 mb-1.5 font-medium">Slug (URL personalizada)</label>
                   <input
                     type="text"
-                    value={form.slug}
-                    onChange={(e) => setForm(prev => ({ ...prev, slug: e.target.value }))}
+                    value={formSlug}
+                    onChange={(e) => setFormSlug(e.target.value)}
                     className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 transition-all"
                     placeholder="Ex: top-terror (opcional)"
+                  />
+                </div>
+
+                {/* TMDB Movie Search */}
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1.5 font-medium">Filmes da Lista</label>
+                  <MovieSearchPicker
+                    selectedMovies={selectedMovies}
+                    onAddMovie={addMovie}
+                    onRemoveMovie={removeMovie}
                   />
                 </div>
               </div>
@@ -1157,7 +1225,7 @@ function ListsTab({
                 </button>
                 <button
                   onClick={handleSaveList}
-                  disabled={isSaving || !form.title.trim()}
+                  disabled={isSaving || !formTitle.trim()}
                   className="flex items-center gap-2 px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -2025,6 +2093,202 @@ function ReadOnlyField({ label, value, badge }: { label: string; value: string; 
         </span>
       ) : (
         <p className="text-sm font-medium text-gray-300">{value}</p>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MOVIE SEARCH PICKER COMPONENT (TMDB)
+// ═══════════════════════════════════════════════════════════════════
+
+function MovieSearchPicker({
+  selectedMovies,
+  onAddMovie,
+  onRemoveMovie,
+}: {
+  selectedMovies: Array<{ id: number; title: string; poster_path: string | null; release_date: string }>;
+  onAddMovie: (movie: { id: number; title: string; poster_path: string | null; release_date: string }) => void;
+  onRemoveMovie: (movieId: number) => void;
+}) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: number; title: string; poster_path: string | null; release_date: string; vote_average: number; overview: string }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    searchTimeout.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const { searchMovies } = await import('../../services/tmdbService');
+        const results = await searchMovies(searchQuery.trim());
+        setSearchResults(results.slice(0, 8));
+        setShowResults(true);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => { if (searchTimeout.current) clearTimeout(searchTimeout.current); };
+  }, [searchQuery]);
+
+  // Close results on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (resultsRef.current && !resultsRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleSelectMovie = (movie: { id: number; title: string; poster_path: string | null; release_date: string }) => {
+    onAddMovie(movie);
+    setSearchQuery('');
+    setShowResults(false);
+  };
+
+  const TMDB_IMG = 'https://image.tmdb.org/t/p/w92';
+
+  return (
+    <div className="space-y-3">
+      {/* Search input */}
+      <div className="relative" ref={resultsRef}>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => { if (searchResults.length > 0) setShowResults(true); }}
+            className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 transition-all text-sm"
+            placeholder="Buscar filme por nome... (ex: Interestelar)"
+          />
+          {isSearching && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-purple-400 animate-spin" />
+          )}
+        </div>
+
+        {/* Search Results Dropdown */}
+        <AnimatePresence>
+          {showResults && searchResults.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="absolute z-50 w-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto"
+            >
+              {searchResults.map((movie) => {
+                const alreadyAdded = selectedMovies.some(m => m.id === movie.id);
+                return (
+                  <button
+                    key={movie.id}
+                    onClick={() => handleSelectMovie(movie)}
+                    disabled={alreadyAdded}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors ${
+                      alreadyAdded
+                        ? 'opacity-40 cursor-not-allowed'
+                        : 'hover:bg-white/5 cursor-pointer'
+                    }`}
+                  >
+                    {/* Poster thumbnail */}
+                    <div className="w-9 h-13 rounded overflow-hidden bg-white/5 shrink-0">
+                      {movie.poster_path ? (
+                        <img
+                          src={`${TMDB_IMG}${movie.poster_path}`}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Film className="w-4 h-4 text-gray-600" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium truncate">{movie.title}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        {movie.release_date && <span>{movie.release_date.slice(0, 4)}</span>}
+                        {movie.vote_average > 0 && (
+                          <span className="flex items-center gap-0.5">
+                            <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400" />
+                            {movie.vote_average.toFixed(1)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {/* Add indicator */}
+                    {alreadyAdded ? (
+                      <span className="text-[10px] text-gray-500 shrink-0">Adicionado</span>
+                    ) : (
+                      <Plus className="w-4 h-4 text-purple-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Selected Movies List */}
+      {selectedMovies.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs text-gray-500 font-medium">{selectedMovies.length} filme{selectedMovies.length !== 1 ? 's' : ''} selecionado{selectedMovies.length !== 1 ? 's' : ''}</p>
+          <div className="flex flex-wrap gap-2">
+            {selectedMovies.map((movie, index) => (
+              <div
+                key={movie.id}
+                className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 group"
+              >
+                <span className="text-xs text-gray-500 font-mono w-4">{index + 1}</span>
+                {movie.poster_path ? (
+                  <img
+                    src={`${TMDB_IMG}${movie.poster_path}`}
+                    alt=""
+                    className="w-6 h-9 rounded object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-6 h-9 rounded bg-white/5 flex items-center justify-center">
+                    <Film className="w-3 h-3 text-gray-600" />
+                  </div>
+                )}
+                <span className="text-sm text-white truncate max-w-[140px]">{movie.title}</span>
+                {movie.release_date && (
+                  <span className="text-[10px] text-gray-500">{movie.release_date.slice(0, 4)}</span>
+                )}
+                <button
+                  onClick={() => onRemoveMovie(movie.id)}
+                  className="ml-0.5 text-gray-500 hover:text-red-400 transition-colors"
+                  title="Remover"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedMovies.length === 0 && (
+        <p className="text-xs text-gray-600">Busque e adicione filmes à sua lista. Os filmes serão exibidos com pôsteres no seu perfil público.</p>
       )}
     </div>
   );

@@ -27,6 +27,7 @@ import { ProfilePage } from './components/profile/ProfilePage';
 import { FriendsPage } from './components/friends/FriendsPage';
 import { OracleModal } from './components/oracle/OracleModal';
 import { ConsentModal } from './components/common/ConsentModal';
+import { AppInstallBanner } from './components/common/AppInstallBanner';
 import { supabase } from './lib/supabase';
 
 const navItems = [
@@ -443,6 +444,12 @@ export default function App() {
           </AnimatePresence>
         )}
       </main>
+
+      {/* APK Install Banner - only for Pro users */}
+      {user && isPro && (
+        <AppInstallBanner isPro={isPro} />
+      )}
+
       {/* Mobile Bottom Navigation - only show when user is logged in */}
       {user && (
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-xl border-t border-white/10">
