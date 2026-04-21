@@ -176,7 +176,8 @@ export function useRatings({
       if (isAuthFailure) {
         toast.error('Sessão expirada. Faça login novamente para usar o Oráculo.', { duration: 6000 });
       } else if (httpStatus === '403') {
-        toast.error('Assinatura PRO necessária. Vá em Perfil → Assine PRO.', { duration: 6000 });
+        toast.error('Assinatura PRO necessária. Redirecionando para os planos...', { duration: 4000 });
+        onNavigateToPricing();
       } else if (httpStatus === '429' || msg.includes('Limite de consultas')) {
         toast.error('Limite de consultas atingido. Aguarde alguns minutos e tente novamente.', { duration: 6000 });
       } else if (msg.includes('OPENROUTER_API_KEY') || msg.includes('not configured')) {

@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+*.bak
+dist_backup/
+supabase/.temp/
+bun.lock
+metadata.json
+image-service/

@@ -8,13 +8,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.stripe-checkout]
-verify_jwt = true
+verify_jwt = false
 
 [functions.stripe-portal]
-verify_jwt = true
+verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
 
 [functions.check-subscription]
-verify_jwt = true
+verify_jwt = false
+
+[functions.admin-stats]
+verify_jwt = false

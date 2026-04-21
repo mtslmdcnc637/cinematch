@@ -8,6 +8,10 @@ import PrivacyPage from './pages/PrivacyPage';
 import DashboardPage from './pages/DashboardPage';
 import DicaPage from './pages/DicaPage';
 import { PublicProfilePage } from './components/profile/PublicProfilePage';
+import ProducerRegisterPage from './components/producer/ProducerRegisterPage';
+import ProducerLoginPage from './components/producer/ProducerLoginPage';
+import ProducerDashboardPage from './components/producer/ProducerDashboardPage';
+import { ProducerPublicPage } from './components/producer/ProducerPublicPage';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { supabase } from './lib/supabase';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -18,6 +22,12 @@ import { captureReferral } from './lib/referral';
 const PublicProfileRoute: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   return <PublicProfilePage username={username!} />;
+};
+
+/** Wrapper for producer public page at /p/:username */
+const ProducerPublicRoute: React.FC = () => {
+  const { username } = useParams<{ username: string }>();
+  return <ProducerPublicPage username={username!} />;
 };
 
 const queryClient = new QueryClient({
@@ -64,6 +74,11 @@ export default function Router() {
               <Route path="/dica" element={<DicaPage />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/u/:username" element={<PublicProfileRoute />} />
+              {/* Producer routes */}
+              <Route path="/producer/register" element={<ProducerRegisterPage />} />
+              <Route path="/producer/login" element={<ProducerLoginPage />} />
+              <Route path="/producer/dashboard" element={<ProducerDashboardPage />} />
+              <Route path="/p/:username" element={<ProducerPublicRoute />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>

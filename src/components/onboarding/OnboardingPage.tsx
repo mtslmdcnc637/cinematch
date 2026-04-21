@@ -65,13 +65,14 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
   };
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence>
       {step === 0 ? (
         <motion.div
           key="welcome"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.15 }}
           className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto text-center py-12 px-4"
         >
           <div className="mb-8 relative">
@@ -131,6 +132,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.15 }}
           className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto text-center py-12"
         >
           <h2 className="text-5xl md:text-7xl font-bold mb-6 tracking-tighter font-display bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/50">
