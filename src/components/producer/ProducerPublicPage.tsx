@@ -60,6 +60,7 @@ interface ProducerData {
   social_instagram?: string | null;
   social_tiktok?: string | null;
   social_youtube?: string | null;
+  free_movies_limit?: number;
 }
 
 interface MovieData {
@@ -117,7 +118,7 @@ const getReferralCode = (username: string): string => {
 };
 
 // ─── Free Movies Limit ────────────────────────────────────────────
-const FREE_MOVIE_LIMIT = 2;
+const DEFAULT_FREE_MOVIE_LIMIT = 5;
 
 // ─── Component ────────────────────────────────────────────────────
 
@@ -608,9 +609,10 @@ export const ProducerPublicPage: React.FC<ProducerPublicPageProps> = ({ username
               {lists.map((list, listIndex) => {
                 const movies = list.movie_data && list.movie_data.length > 0 ? list.movie_data : [];
                 const isExpanded = expandedLists.has(list.id);
-                const visibleMovies = canSeeAllMovies || isExpanded ? movies : movies.slice(0, FREE_MOVIE_LIMIT);
-                const hasLockedMovies = !canSeeAllMovies && movies.length > FREE_MOVIE_LIMIT;
-                const lockedCount = movies.length - FREE_MOVIE_LIMIT;
+                const freeLimit = producer?.free_movies_limit || DEFAULT_FREE_MOVIE_LIMIT;
+                const visibleMovies = canSeeAllMovies || isExpanded ? movies : movies.slice(0, freeLimit);
+                const hasLockedMovies = !canSeeAllMovies && movies.length > freeLimit;
+                const lockedCount = movies.length - freeLimit;
 
                 return (
                   <motion.div

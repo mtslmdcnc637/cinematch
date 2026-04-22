@@ -83,6 +83,7 @@ interface ProducerData {
   youtube: string | null;
   email: string | null;
   stripe_connect_id: string | null;
+  free_movies_limit: number;
   created_at: string;
 }
 
@@ -661,6 +662,7 @@ function ProfileTab({
     instagram: producer.instagram || '',
     tiktok: producer.tiktok || '',
     youtube: producer.youtube || '',
+    free_movies_limit: producer.free_movies_limit || 5,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -781,6 +783,36 @@ function ProfileTab({
                 className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 transition-all"
                 placeholder="@canal"
               />
+            </div>
+          </div>
+
+          {/* Free Movies Limit */}
+          <div className="bg-gradient-to-r from-purple-900/20 to-fuchsia-900/10 border border-purple-500/20 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                <Eye className="w-5 h-5 text-purple-400" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-sm text-purple-200">Filmes Grátis para Seguidores</h4>
+                <p className="text-xs text-gray-400 mt-0.5 mb-3">
+                  Quantos filmes seus seguidores podem ver gratuitamente em cada lista (3 a 10). O restante fica bloqueado com “Seja Pro”.
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={3}
+                    max={10}
+                    value={form.free_movies_limit}
+                    onChange={(e) => setForm(prev => ({ ...prev, free_movies_limit: parseInt(e.target.value, 10) }))}
+                    className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                  />
+                  <span className="text-2xl font-bold text-purple-300 w-10 text-center">{form.free_movies_limit}</span>
+                </div>
+                <div className="flex justify-between text-[10px] text-gray-500 mt-1 px-0.5">
+                  <span>3 (mais exclusivo)</span>
+                  <span>10 (mais aberto)</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
