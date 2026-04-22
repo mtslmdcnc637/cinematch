@@ -62,7 +62,6 @@ import {
   BadgePercent,
   RefreshCw,
   Megaphone,
-  Image,
   Star,
   Rocket,
   Crown,
@@ -267,14 +266,6 @@ const PRODUCER_ADVANTAGES = [
     color: 'text-rose-400',
     bg: 'bg-rose-500/10',
     border: 'border-rose-500/20',
-  },
-  {
-    icon: Image,
-    title: 'Gerador de carrossel automatico',
-    description: 'IA cria carrosseis para Instagram/TikTok com suas listas.',
-    color: 'text-pink-400',
-    bg: 'bg-pink-500/10',
-    border: 'border-pink-500/20',
   },
 ];
 
