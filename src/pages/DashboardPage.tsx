@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2, Pencil, X, Check, Loader2 } from 'lucide-react';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
-import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
 
 // Admin password is validated server-side only (admin-stats edge function).
@@ -43,7 +42,38 @@ interface SubscriptionRow {
   updated_at: string | null;
 }
 
+interface SecretCode {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  movie_ids: number[];
+  is_active: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
 type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes';
+
+// ─── API Helper ───
+const API_BASE = '/api/admin/secret-codes';
+
+async function adminFetch(path: string, options: RequestInit = {}, adminPassword?: string) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
+  };
+  if (adminPassword) {
+    headers['x-admin-password'] = adminPassword;
+  }
+
+  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `Erro ${res.status}`);
+  }
+  return data;
+}
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -57,12 +87,13 @@ export default function DashboardPage() {
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
 
   // Secret codes management
-  const [secretCodes, setSecretCodes] = useState<any[]>([]);
+  const [secretCodes, setSecretCodes] = useState<SecretCode[]>([]);
   const [newCode, setNewCode] = useState({ code: '', title: '', description: '', movieIds: '' });
+  const [editingCode, setEditingCode] = useState<SecretCode | null>(null);
+  const [editForm, setEditForm] = useState({ code: '', title: '', description: '', movieIds: '' });
+  const [codeActionLoading, setCodeActionLoading] = useState<string | null>(null);
 
   // Check if already authenticated (session storage)
-  // The password is stored in sessionStorage so the admin doesn't need to
-  // re-enter it on every page reload within the same browser session.
   useEffect(() => {
     const savedPassword = sessionStorage.getItem('cm_admin_pw');
     if (savedPassword && sessionStorage.getItem('cm_admin') === 'true') {
@@ -78,8 +109,6 @@ export default function DashboardPage() {
   }, [isAuthed]);
 
   const loadAllData = async () => {
-    // SECURITY: Password must be available for each API call.
-    // If it's not set, force re-authentication.
     if (!password) {
       setIsAuthed(false);
       sessionStorage.removeItem('cm_admin');
@@ -103,7 +132,6 @@ export default function DashboardPage() {
       loadSecretCodes();
     } catch (err) {
       toast.error('Erro ao carregar dados. Verifique sua senha.');
-      // If auth fails, force re-authentication
       setIsAuthed(false);
       sessionStorage.removeItem('cm_admin');
       setPassword('');
@@ -113,7 +141,6 @@ export default function DashboardPage() {
   };
 
   const handleLogin = async () => {
-    // Verify password server-side instead of client-side comparison
     try {
       await invokeEdgeFunction('admin-stats', { admin_password: password });
       setIsAuthed(true);
@@ -131,18 +158,18 @@ export default function DashboardPage() {
     setPassword('');
   };
 
-  // ─── Secret Codes CRUD ─────────────────────────────────────────────────
+  // ─── Secret Codes CRUD (via API) ────────────────────────────────
   const loadSecretCodes = async () => {
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from('secret_codes')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (!error && data) setSecretCodes(data);
+    try {
+      const data = await adminFetch('', {}, password);
+      setSecretCodes(data);
+    } catch (err: any) {
+      console.error('Failed to load secret codes:', err.message);
+    }
   };
 
   const handleCreateCode = async () => {
-    if (!supabase || !newCode.code || !newCode.title) {
+    if (!newCode.code || !newCode.title) {
       toast.error('Código e título são obrigatórios');
       return;
     }
@@ -151,45 +178,95 @@ export default function DashboardPage() {
       .map(s => parseInt(s.trim()))
       .filter(n => !isNaN(n));
 
-    const { error } = await supabase
-      .from('secret_codes')
-      .insert({
-        code: newCode.code.trim(),
-        title: newCode.title.trim(),
-        description: newCode.description.trim() || null,
-        movie_ids: movieIds,
-      });
-
-    if (error) {
-      toast.error(`Erro: ${error.message}`);
-    } else {
+    try {
+      await adminFetch('', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: newCode.code.trim(),
+          title: newCode.title.trim(),
+          description: newCode.description.trim() || null,
+          movie_ids: movieIds,
+        }),
+      }, password);
       toast.success(`Código "${newCode.code}" criado!`);
       setNewCode({ code: '', title: '', description: '', movieIds: '' });
       loadSecretCodes();
+    } catch (err: any) {
+      toast.error(`Erro: ${err.message}`);
     }
   };
 
   const handleDeleteCode = async (id: string) => {
-    if (!supabase) return;
-    const { error } = await supabase.from('secret_codes').delete().eq('id', id);
-    if (error) {
-      toast.error(`Erro ao deletar: ${error.message}`);
-    } else {
+    setCodeActionLoading(id + '-delete');
+    try {
+      await adminFetch(`/${id}`, { method: 'DELETE' }, password);
       toast.success('Código deletado');
       loadSecretCodes();
+    } catch (err: any) {
+      toast.error(`Erro ao deletar: ${err.message}`);
+    } finally {
+      setCodeActionLoading(null);
     }
   };
 
-  const handleToggleCode = async (id: string, isActive: boolean) => {
-    if (!supabase) return;
-    const { error } = await supabase
-      .from('secret_codes')
-      .update({ is_active: !isActive, updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) {
-      toast.error(`Erro: ${error.message}`);
-    } else {
+  const handleToggleCode = async (id: string) => {
+    setCodeActionLoading(id + '-toggle');
+    try {
+      await adminFetch(`/${id}/toggle`, { method: 'PATCH' }, password);
+      toast.success('Status alterado');
       loadSecretCodes();
+    } catch (err: any) {
+      toast.error(`Erro: ${err.message}`);
+    } finally {
+      setCodeActionLoading(null);
+    }
+  };
+
+  const startEditCode = (sc: SecretCode) => {
+    setEditingCode(sc);
+    setEditForm({
+      code: sc.code,
+      title: sc.title,
+      description: sc.description || '',
+      movieIds: sc.movie_ids?.join(', ') || '',
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingCode(null);
+    setEditForm({ code: '', title: '', description: '', movieIds: '' });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingCode) return;
+    if (!editForm.code || !editForm.title) {
+      toast.error('Código e título são obrigatórios');
+      return;
+    }
+
+    const movieIds = editForm.movieIds
+      .split(',')
+      .map(s => parseInt(s.trim()))
+      .filter(n => !isNaN(n));
+
+    setCodeActionLoading(editingCode.id + '-edit');
+    try {
+      await adminFetch(`/${editingCode.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          code: editForm.code.trim(),
+          title: editForm.title.trim(),
+          description: editForm.description.trim() || null,
+          movie_ids: movieIds,
+        }),
+      }, password);
+      toast.success('Código atualizado!');
+      cancelEdit();
+      loadSecretCodes();
+    } catch (err: any) {
+      toast.error(`Erro ao salvar: ${err.message}`);
+    } finally {
+      setCodeActionLoading(null);
     }
   };
 
@@ -202,7 +279,6 @@ export default function DashboardPage() {
   const freeUsers = profiles.filter(p => !p.subscription_status || p.subscription_status === 'free').length;
   const proUsers = profiles.filter(p => p.subscription_status === 'pro' || p.subscription_status === 'active' || p.subscription_status === 'trialing').length;
 
-  // Funnel: count users per step
   const funnelSteps = useCallback(() => {
     if (quizResponses.length === 0) return [];
     const stepCounts: Record<number, number> = {};
@@ -210,7 +286,6 @@ export default function DashboardPage() {
       const step = r.last_step;
       stepCounts[step] = (stepCounts[step] || 0) + 1;
     });
-    // Also add completed count
     const maxStep = Math.max(...Object.keys(stepCounts).map(Number), 0);
     const steps = [];
     for (let i = 0; i <= maxStep; i++) {
@@ -220,7 +295,6 @@ export default function DashboardPage() {
         count: stepCounts[i] || 0,
       });
     }
-    // Add completed
     steps.push({
       step: maxStep + 1,
       label: 'Completou',
@@ -229,7 +303,6 @@ export default function DashboardPage() {
     return steps;
   }, [quizResponses, completedQuizzes]);
 
-  // Profile type distribution
   const profileDistribution = useCallback(() => {
     const counts: Record<string, number> = {};
     quizResponses.filter(r => r.completed && r.profile_type).forEach(r => {
@@ -364,7 +437,6 @@ export default function DashboardPage() {
         {/* ─── OVERVIEW TAB ─── */}
         {activeTab === 'overview' && (
           <div>
-            {/* Metric Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <MetricCard icon={Users} label="Total Usuários" value={totalProfiles} color="purple" />
               <MetricCard icon={UserCheck} label="Quizzes Completos" value={completedQuizzes} color="green" />
@@ -379,30 +451,19 @@ export default function DashboardPage() {
               <MetricCard icon={TrendingUp} label="Usuários Pro" value={proUsers} color="purple" />
             </div>
 
-            {/* Conversion rate */}
             <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mb-8">
               <h3 className="font-bold text-lg mb-4">Taxa de Conversão</h3>
               {totalQuizResponses > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <ConversionItem
-                    label="Quiz → Completou"
-                    value={totalQuizResponses > 0 ? ((completedQuizzes / totalQuizResponses) * 100).toFixed(1) : '0'}
-                  />
-                  <ConversionItem
-                    label="Completou → Cadastro"
-                    value={completedQuizzes > 0 ? ((totalProfiles / completedQuizzes) * 100).toFixed(1) : '0'}
-                  />
-                  <ConversionItem
-                    label="Cadastro → Assinatura"
-                    value={totalProfiles > 0 ? ((activeSubscriptions / totalProfiles) * 100).toFixed(1) : '0'}
-                  />
+                  <ConversionItem label="Quiz → Completou" value={totalQuizResponses > 0 ? ((completedQuizzes / totalQuizResponses) * 100).toFixed(1) : '0'} />
+                  <ConversionItem label="Completou → Cadastro" value={completedQuizzes > 0 ? ((totalProfiles / completedQuizzes) * 100).toFixed(1) : '0'} />
+                  <ConversionItem label="Cadastro → Assinatura" value={totalProfiles > 0 ? ((activeSubscriptions / totalProfiles) * 100).toFixed(1) : '0'} />
                 </div>
               ) : (
-                <p className="text-gray-500">Nenhuma resposta de quiz registrada ainda. Os dados aparecerão conforme os usuários forem completando o quiz.</p>
+                <p className="text-gray-500">Nenhuma resposta de quiz registrada ainda.</p>
               )}
             </div>
 
-            {/* Profile type distribution */}
             {profileDistData.length > 0 && (
               <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
                 <h3 className="font-bold text-lg mb-4">Distribuição de Perfis</h3>
@@ -414,10 +475,7 @@ export default function DashboardPage() {
                         <span className="text-purple-400 font-bold">{count}</span>
                       </div>
                       <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full transition-all"
-                          style={{ width: `${(count / Math.max(...profileDistData.map(d => d.count))) * 100}%` }}
-                        />
+                        <div className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full transition-all" style={{ width: `${(count / Math.max(...profileDistData.map(d => d.count))) * 100}%` }} />
                       </div>
                     </div>
                   ))}
@@ -436,31 +494,22 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   {funnelData.map((step, i) => {
                     const prevCount = i > 0 ? funnelData[i - 1].count : step.count;
-                    const dropOff = i > 0 && prevCount > 0
-                      ? (((prevCount - step.count) / prevCount) * 100).toFixed(1)
-                      : null;
+                    const dropOff = i > 0 && prevCount > 0 ? (((prevCount - step.count) / prevCount) * 100).toFixed(1) : null;
                     return (
                       <div key={step.step}>
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-300">{step.label}</span>
                             {dropOff !== null && Number(dropOff) > 0 && (
-                              <span className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">
-                                -{dropOff}% drop-off
-                              </span>
+                              <span className="text-xs text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full">-{dropOff}% drop-off</span>
                             )}
                           </div>
                           <span className="text-sm font-bold text-purple-400">{step.count} usuários</span>
                         </div>
                         <div className="h-8 bg-gray-800 rounded-lg overflow-hidden relative">
-                          <div
-                            className="h-full bg-gradient-to-r from-purple-600 to-fuchsia-500 rounded-lg transition-all duration-500 flex items-center justify-end pr-3"
-                            style={{ width: `${(step.count / maxFunnelCount) * 100}%` }}
-                          >
+                          <div className="h-full bg-gradient-to-r from-purple-600 to-fuchsia-500 rounded-lg transition-all duration-500 flex items-center justify-end pr-3" style={{ width: `${(step.count / maxFunnelCount) * 100}%` }}>
                             {step.count > 0 && (step.count / maxFunnelCount) > 0.15 && (
-                              <span className="text-xs font-bold text-white/80">
-                                {((step.count / maxFunnelCount) * 100).toFixed(0)}%
-                              </span>
+                              <span className="text-xs font-bold text-white/80">{((step.count / maxFunnelCount) * 100).toFixed(0)}%</span>
                             )}
                           </div>
                         </div>
@@ -469,7 +518,7 @@ export default function DashboardPage() {
                   })}
                 </div>
               ) : (
-                <p className="text-gray-500">Nenhuma resposta de quiz registrada ainda. O funil aparecerá conforme os usuários forem completando o quiz.</p>
+                <p className="text-gray-500">Nenhuma resposta de quiz registrada ainda.</p>
               )}
             </div>
           </div>
@@ -484,7 +533,7 @@ export default function DashboardPage() {
             {quizResponses.length === 0 ? (
               <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
                 <Mail className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500">Nenhuma resposta registrada ainda. Os dados aparecerão conforme os usuários forem completando o quiz.</p>
+                <p className="text-gray-500">Nenhuma resposta registrada ainda.</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -492,38 +541,20 @@ export default function DashboardPage() {
                   <div key={r.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
                     <div className="flex flex-wrap items-center gap-3 mb-2">
                       <span className="font-bold text-sm">{r.name || 'Anônimo'}</span>
-                      {r.email && (
-                        <span className="text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Mail className="w-3 h-3" /> {r.email}
-                        </span>
-                      )}
-                      {r.whatsapp && (
-                        <span className="text-xs bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Phone className="w-3 h-3" /> {r.whatsapp}
-                        </span>
-                      )}
-                      {r.completed ? (
-                        <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">Completou</span>
-                      ) : (
-                        <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">Parou na etapa {r.last_step}</span>
-                      )}
-                      {r.profile_type && (
-                        <span className="text-xs bg-fuchsia-500/10 text-fuchsia-400 px-2 py-0.5 rounded-full">{r.profile_type}</span>
-                      )}
+                      {r.email && <span className="text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full flex items-center gap-1"><Mail className="w-3 h-3" /> {r.email}</span>}
+                      {r.whatsapp && <span className="text-xs bg-teal-500/10 text-teal-400 px-2 py-0.5 rounded-full flex items-center gap-1"><Phone className="w-3 h-3" /> {r.whatsapp}</span>}
+                      {r.completed ? <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">Completou</span> : <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">Parou na etapa {r.last_step}</span>}
+                      {r.profile_type && <span className="text-xs bg-fuchsia-500/10 text-fuchsia-400 px-2 py-0.5 rounded-full">{r.profile_type}</span>}
                     </div>
                     {r.answers && (
                       <div className="mt-2 text-xs text-gray-500">
                         <details>
                           <summary className="cursor-pointer hover:text-gray-300 transition-colors">Ver respostas detalhadas</summary>
-                          <pre className="mt-2 bg-black/30 rounded-lg p-3 overflow-x-auto text-gray-400">
-                            {JSON.stringify(r.answers, null, 2)}
-                          </pre>
+                          <pre className="mt-2 bg-black/30 rounded-lg p-3 overflow-x-auto text-gray-400">{JSON.stringify(r.answers, null, 2)}</pre>
                         </details>
                       </div>
                     )}
-                    {r.created_at && (
-                      <p className="text-[10px] text-gray-600 mt-2">{new Date(r.created_at).toLocaleString('pt-BR')}</p>
-                    )}
+                    {r.created_at && <p className="text-[10px] text-gray-600 mt-2">{new Date(r.created_at).toLocaleString('pt-BR')}</p>}
                   </div>
                 ))}
               </div>
@@ -563,22 +594,10 @@ export default function DashboardPage() {
                         <td className="py-3 px-2 text-center text-purple-400 font-bold">{p.xp}</td>
                         <td className="py-3 px-2 text-center">{p.level}</td>
                         <td className="py-3 px-2 text-center">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            p.subscription_plan === 'pro' || p.subscription_plan === 'quarterly' || p.subscription_plan === 'annual'
-                              ? 'bg-purple-500/10 text-purple-400'
-                              : 'bg-gray-500/10 text-gray-400'
-                          }`}>
-                            {p.subscription_plan || 'free'}
-                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${p.subscription_plan === 'pro' || p.subscription_plan === 'quarterly' || p.subscription_plan === 'annual' ? 'bg-purple-500/10 text-purple-400' : 'bg-gray-500/10 text-gray-400'}`}>{p.subscription_plan || 'free'}</span>
                         </td>
                         <td className="py-3 px-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            p.subscription_status === 'active' || p.subscription_status === 'pro' || p.subscription_status === 'trialing'
-                              ? 'bg-green-500/10 text-green-400'
-                              : 'bg-gray-500/10 text-gray-400'
-                          }`}>
-                            {p.subscription_status || 'free'}
-                          </span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${p.subscription_status === 'active' || p.subscription_status === 'pro' || p.subscription_status === 'trialing' ? 'bg-green-500/10 text-green-400' : 'bg-gray-500/10 text-gray-400'}`}>{p.subscription_status || 'free'}</span>
                         </td>
                       </tr>
                     ))}
@@ -589,7 +608,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Secret Codes Tab */}
+        {/* ─── SECRET CODES TAB ─── */}
         {activeTab === 'codes' && (
           <div className="space-y-6">
             {/* Create new code */}
@@ -601,55 +620,71 @@ export default function DashboardPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Código *</label>
-                  <input
-                    type="text"
-                    value={newCode.code}
-                    onChange={e => setNewCode(prev => ({ ...prev, code: e.target.value }))}
-                    placeholder="ex: 99, HORROR2024, NATAL"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="text" value={newCode.code} onChange={e => setNewCode(prev => ({ ...prev, code: e.target.value }))} placeholder="ex: 99, HORROR2024, NATAL" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50" />
                 </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Título *</label>
-                  <input
-                    type="text"
-                    value={newCode.title}
-                    onChange={e => setNewCode(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="ex: 5 Filmes de Terror Secretos"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="text" value={newCode.title} onChange={e => setNewCode(prev => ({ ...prev, title: e.target.value }))} placeholder="ex: 5 Filmes de Terror Secretos" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm text-gray-400 mb-1">Descrição</label>
-                  <input
-                    type="text"
-                    value={newCode.description}
-                    onChange={e => setNewCode(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descrição opcional que aparece no card"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="text" value={newCode.description} onChange={e => setNewCode(prev => ({ ...prev, description: e.target.value }))} placeholder="Descrição opcional que aparece no card" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50" />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-sm text-gray-400 mb-1">IDs dos Filmes (TMDB) *</label>
-                  <input
-                    type="text"
-                    value={newCode.movieIds}
-                    onChange={e => setNewCode(prev => ({ ...prev, movieIds: e.target.value }))}
-                    placeholder="IDs separados por vírgula, ex: 574475, 414429, 447365"
-                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
-                  />
+                  <input type="text" value={newCode.movieIds} onChange={e => setNewCode(prev => ({ ...prev, movieIds: e.target.value }))} placeholder="IDs separados por vírgula, ex: 574475, 414429, 447365" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50" />
                   <p className="text-xs text-gray-600 mt-1">Encontre o ID no TMDB: themoviedb.org/movie/[ID]</p>
                 </div>
               </div>
-              <button
-                onClick={handleCreateCode}
-                disabled={!newCode.code || !newCode.title}
-                className="mt-4 px-6 py-2 bg-purple-600 rounded-lg font-medium hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
+              <button onClick={handleCreateCode} disabled={!newCode.code || !newCode.title} className="mt-4 px-6 py-2 bg-purple-600 rounded-lg font-medium hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                 <Plus className="w-4 h-4" />
                 Criar Código
               </button>
             </div>
+
+            {/* Edit modal/panel */}
+            {editingCode && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="bg-[#1a1a1a] border border-white/10 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-lg flex items-center gap-2">
+                      <Pencil className="w-5 h-5 text-purple-400" />
+                      Editar Código
+                    </h3>
+                    <button onClick={cancelEdit} className="text-gray-500 hover:text-white p-1 rounded-lg transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Código *</label>
+                      <input type="text" value={editForm.code} onChange={e => setEditForm(prev => ({ ...prev, code: e.target.value }))} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500/50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Título *</label>
+                      <input type="text" value={editForm.title} onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500/50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">Descrição</label>
+                      <input type="text" value={editForm.description} onChange={e => setEditForm(prev => ({ ...prev, description: e.target.value }))} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500/50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">IDs dos Filmes (TMDB)</label>
+                      <input type="text" value={editForm.movieIds} onChange={e => setEditForm(prev => ({ ...prev, movieIds: e.target.value }))} placeholder="IDs separados por vírgula" className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50" />
+                    </div>
+                  </div>
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={cancelEdit} className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg font-medium hover:bg-white/10 transition-colors">
+                      Cancelar
+                    </button>
+                    <button onClick={handleSaveEdit} disabled={codeActionLoading === editingCode.id + '-edit'} className="flex-1 px-4 py-2.5 bg-purple-600 rounded-lg font-medium hover:bg-purple-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                      {codeActionLoading === editingCode.id + '-edit' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Existing codes */}
             <div>
@@ -661,41 +696,61 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {secretCodes.map(sc => (
-                    <div key={sc.id} className={`bg-white/5 border rounded-xl p-4 flex items-start justify-between gap-4 ${sc.is_active ? 'border-white/10' : 'border-red-500/20 opacity-60'}`}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <code className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded text-sm font-mono">{sc.code}</code>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${sc.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
-                            {sc.is_active ? 'Ativo' : 'Inativo'}
-                          </span>
-                        </div>
-                        <h4 className="font-medium">{sc.title}</h4>
-                        {sc.description && <p className="text-sm text-gray-400 mt-0.5">{sc.description}</p>}
-                        <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
-                          <Film className="w-3 h-3" />
-                          <span>{sc.movie_ids?.length || 0} filmes</span>
-                          {sc.movie_ids?.length > 0 && (
-                            <span className="text-gray-600">({sc.movie_ids.join(', ')})</span>
-                          )}
+                  {secretCodes.map(sc => {
+                    const isToggleLoading = codeActionLoading === sc.id + '-toggle';
+                    const isDeleteLoading = codeActionLoading === sc.id + '-delete';
+                    return (
+                      <div key={sc.id} className={`bg-white/5 border rounded-xl p-4 ${sc.is_active ? 'border-white/10' : 'border-red-500/20 opacity-60'}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <code className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded text-sm font-mono">{sc.code}</code>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${sc.is_active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                {sc.is_active ? 'Ativo' : 'Inativo'}
+                              </span>
+                            </div>
+                            <h4 className="font-medium">{sc.title}</h4>
+                            {sc.description && <p className="text-sm text-gray-400 mt-0.5">{sc.description}</p>}
+                            <div className="flex items-center gap-2 mt-2 text-xs text-gray-500">
+                              <Film className="w-3 h-3" />
+                              <span>{sc.movie_ids?.length || 0} filmes</span>
+                              {sc.movie_ids?.length > 0 && <span className="text-gray-600">({sc.movie_ids.join(', ')})</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => startEditCode(sc)}
+                              className="px-3 py-1.5 text-xs rounded-lg transition-colors bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 flex items-center gap-1"
+                              title="Editar"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleToggleCode(sc.id)}
+                              disabled={isToggleLoading}
+                              className={`px-3 py-1.5 text-xs rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1 ${
+                                sc.is_active
+                                  ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20'
+                                  : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                              }`}
+                            >
+                              {isToggleLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                              {sc.is_active ? 'Desativar' : 'Ativar'}
+                            </button>
+                            <button
+                              onClick={() => { if (confirm('Deletar este código?')) handleDeleteCode(sc.id); }}
+                              disabled={isDeleteLoading}
+                              className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-50"
+                              title="Deletar"
+                            >
+                              {isDeleteLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={() => handleToggleCode(sc.id, sc.is_active)}
-                          className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${sc.is_active ? 'bg-yellow-500/10 text-yellow-400 hover:bg-yellow-500/20' : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'}`}
-                        >
-                          {sc.is_active ? 'Desativar' : 'Ativar'}
-                        </button>
-                        <button
-                          onClick={() => { if (confirm('Deletar este código?')) handleDeleteCode(sc.id); }}
-                          className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
