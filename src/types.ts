@@ -31,6 +31,9 @@ export type UserProfile = {
   level: number;
   genres?: number[];
   ratings?: UserRating[];
+  // Gamification v2 fields
+  activeTitle?: string;
+  totalRatings?: number;
 };
 
 // ── Oracle structured result types ──

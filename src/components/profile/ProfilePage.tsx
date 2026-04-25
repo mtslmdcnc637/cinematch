@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, Bell, Bot, Sparkles, Lock, Camera, Globe, Link, Loader2 } from 'lucide-react';
 import { UserProfile, UserRating, WatchlistItem, type OracleResult, type Movie } from '../../types';
-import { GENRES, LEVELS } from '../../constants';
+import { GENRES, LEVELS, LEAGUES, getLeagueForLevel } from '../../constants';
 import { ProBadge, ProAvatarBorder } from '../common/ProBadge';
 import { toast } from 'sonner';
 import { supabaseService } from '../../services/supabaseService';
@@ -85,6 +85,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const navigate = useNavigate();
   const currentLevelData = LEVELS.find(l => l.level === userProfile.level);
   const nextLevelData = LEVELS.find(l => l.level === userProfile.level + 1);
+  const currentLeague = getLeagueForLevel(userProfile.level);
+  const nextLeague = userProfile.level < 30 ? getLeagueForLevel(userProfile.level + 1) : null;
+  const isMaxLevel = userProfile.level >= 30;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -190,10 +193,22 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             </h2>
             <p className="text-gray-400 mb-6">{user.email}</p>
 
-            {/* Level Progress */}
+            {/* Level Progress — Gamification v2 */}
             <div className="max-w-md mx-auto mb-8 relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-amber-500 rounded-[2rem] opacity-30 group-hover:opacity-60 transition duration-500 blur" />
+              <div className={`absolute -inset-0.5 bg-gradient-to-r ${currentLeague.color} rounded-[2rem] opacity-30 group-hover:opacity-60 transition duration-500 blur`} />
               <div className="relative glass-card p-6 rounded-3xl border border-white/10 bg-[#111]">
+                {/* League badge */}
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                    {currentLeague.icon} {currentLeague.name}
+                  </span>
+                  {currentLeague.xpMultiplier > 1 && (
+                    <span className="text-xs font-bold bg-white/10 px-2 py-0.5 rounded-full text-amber-300 border border-amber-500/20">
+                      {currentLeague.xpMultiplier}x XP
+                    </span>
+                  )}
+                </div>
+
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-3">
                     <div
@@ -213,7 +228,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                   </div>
                 </div>
 
-                {userProfile.level < 10 && nextLevelData && (
+                {!isMaxLevel && nextLevelData && (
                   <>
                     <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden border border-white/5 mb-2">
                       <motion.div
@@ -224,11 +239,42 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                         className={`h-full bg-gradient-to-r ${nextLevelData.color}`}
                       />
                     </div>
-                    <p className="text-xs text-gray-400 text-right">
-                      Faltam {nextLevelData.xpRequired - userProfile.xp} XP para o nível {userProfile.level + 1}
-                    </p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-xs text-gray-400">
+                        Faltam {nextLevelData.xpRequired - userProfile.xp} XP para o nível {userProfile.level + 1}
+                      </p>
+                      {nextLeague && nextLeague.id !== currentLeague.id && (
+                        <span className="text-xs font-bold text-amber-300">
+                          {nextLeague.icon} Próxima liga: {nextLeague.name}!
+                        </span>
+                      )}
+                    </div>
                   </>
                 )}
+
+                {isMaxLevel && (
+                  <p className="text-xs text-amber-300 text-center font-bold mt-2">
+                    🎞️ Nível máximo alcançado! Você é uma lenda!
+                  </p>
+                )}
+
+                {/* League progress dots */}
+                <div className="flex justify-center gap-1 mt-3">
+                  {LEAGUES.map(league => {
+                    const isCurrentOrPast = userProfile.level >= league.minLevel;
+                    return (
+                      <div
+                        key={league.id}
+                        className={`h-1.5 rounded-full transition-all ${
+                          isCurrentOrPast
+                            ? `bg-gradient-to-r ${league.color} flex-1`
+                            : 'bg-white/10 w-6'
+                        }`}
+                        title={league.name}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

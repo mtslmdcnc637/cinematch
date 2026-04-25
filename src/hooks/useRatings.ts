@@ -7,7 +7,7 @@ import { useState, useCallback, type Dispatch, type SetStateAction, type MouseEv
 import { useMutation } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
 import { fetchMovieById, searchMovies } from '../services/tmdbService';
-import { LEVELS } from '../constants';
+import { LEVELS, getLevelForXP, calculateEffectiveXP, isLeagueTransition, getLeagueForLevel } from '../constants';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile, type OracleResult } from '../types';
 import { toast } from 'sonner';
 
@@ -234,22 +234,26 @@ export function useRatings({
         }
       }
 
-      // XP Logic
+      // XP Logic — Gamification v2 with league multipliers
       if (rating !== 'not_seen') {
-        let xpGained = 0;
-        if (rating === 'loved') xpGained = 20;
-        else if (rating === 'liked') xpGained = 10;
-        else if (rating === 'disliked') xpGained = 5;
+        let baseXP = 0;
+        if (rating === 'loved') baseXP = 20;
+        else if (rating === 'liked') baseXP = 10;
+        else if (rating === 'disliked') baseXP = 5;
 
         setUserProfile(prev => {
+          // Apply league multiplier + PRO bonus
+          const xpGained = calculateEffectiveXP(baseXP, prev.level, isPro);
           const newXp = prev.xp + xpGained;
-          let newLevel = prev.level;
 
-          const nextLevelData = LEVELS.find(l => l.level === prev.level + 1);
+          // CASCADE FIX: Find highest level reached (not just level+1)
+          const reachedLevel = getLevelForXP(newXp);
+          const newLevel = Math.max(prev.level, reachedLevel);
+          const leveledUp = newLevel > prev.level;
 
-          if (nextLevelData && newXp >= nextLevelData.xpRequired) {
-            newLevel = nextLevelData.level;
-            setNewLevelData(nextLevelData);
+          if (leveledUp) {
+            const newLevelData = LEVELS.find(l => l.level === newLevel)!;
+            setNewLevelData(newLevelData);
             setShowLevelUpModal(true);
           }
 
@@ -261,11 +265,22 @@ export function useRatings({
         });
       }
 
-      // Visual feedback
-      if (rating === 'loved') toast.success(`Você amou ${movie.title}! +20 XP`, { icon: '💖' });
-      else if (rating === 'liked') toast.success(`Você gostou de ${movie.title} +10 XP`, { icon: '👍' });
-      else if (rating === 'disliked') toast('Você não gostou +5 XP', { icon: '👎' });
-      else toast('Ocultado', { icon: '🙈' });
+      // Visual feedback with effective XP shown
+      if (rating !== 'not_seen') {
+        const effectiveXP = calculateEffectiveXP(
+          rating === 'loved' ? 20 : rating === 'liked' ? 10 : 5,
+          userProfile.level,
+          isPro
+        );
+        const league = getLeagueForLevel(userProfile.level);
+        const multiplierText = league.xpMultiplier > 1 ? ` (${league.xpMultiplier}x ${league.name})` : '';
+
+        if (rating === 'loved') toast.success(`Você amou ${movie.title}! +${effectiveXP} XP${multiplierText}`, { icon: '💖' });
+        else if (rating === 'liked') toast.success(`Você gostou de ${movie.title} +${effectiveXP} XP${multiplierText}`, { icon: '👍' });
+        else if (rating === 'disliked') toast(`Você não gostou +${effectiveXP} XP${multiplierText}`, { icon: '👎' });
+      } else {
+        toast('Ocultado', { icon: '🙈' });
+      }
 
       if (rating !== 'not_seen') {
         setRatingAnimation({ type: rating, id: Date.now() });

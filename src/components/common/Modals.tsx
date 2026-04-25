@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Film, Star, Bot, Library } from 'lucide-react';
+import { X, Sparkles, Film, Star, Bot, Library, Trophy } from 'lucide-react';
+import { isLeagueTransition, getLeagueForLevel, LEAGUES } from '../../constants';
 
 /* ──────────── Level Up Modal ──────────── */
 
@@ -15,7 +16,11 @@ interface LevelUpModalProps {
   onClose: () => void;
 }
 
-export const LevelUpModal: React.FC<LevelUpModalProps> = ({ show, levelData, onClose }) => (
+export const LevelUpModal: React.FC<LevelUpModalProps> = ({ show, levelData, onClose }) => {
+  const isLeagueUp = levelData ? isLeagueTransition(levelData.level) : false;
+  const league = levelData ? getLeagueForLevel(levelData.level) : null;
+
+  return (
   <AnimatePresence>
     {show && levelData && (
       <motion.div
@@ -30,10 +35,27 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ show, levelData, onC
           animate={{ scale: 1, y: 0, opacity: 1 }}
           exit={{ scale: 0.8, y: 50, opacity: 0 }}
           transition={{ type: "spring", damping: 20, stiffness: 300 }}
-          className="relative w-full max-w-sm glass-card rounded-[3rem] p-8 text-center border border-white/20 overflow-hidden"
+          className={`relative w-full max-w-sm glass-card rounded-[3rem] p-8 text-center border overflow-hidden ${
+            isLeagueUp ? 'border-amber-400/50' : 'border-white/20'
+          }`}
           onClick={e => e.stopPropagation()}
         >
-          <div className={`absolute inset-0 bg-gradient-to-br ${levelData.color} opacity-20`} />
+          <div className={`absolute inset-0 bg-gradient-to-br ${levelData.color} ${isLeagueUp ? 'opacity-30' : 'opacity-20'}`} />
+
+          {/* League transition special banner */}
+          {isLeagueUp && league && (
+            <motion.div
+              initial={{ y: -30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="relative z-10 mb-4 bg-white/10 border border-amber-400/30 rounded-2xl px-4 py-2 flex items-center justify-center gap-2"
+            >
+              <Trophy className="w-5 h-5 text-amber-300" />
+              <span className="text-sm font-bold text-amber-300 uppercase tracking-wider">
+                Nova Liga: {league.icon} {league.name}
+              </span>
+            </motion.div>
+          )}
 
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
@@ -53,21 +75,32 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ show, levelData, onC
             <p className="text-gray-300 font-medium uppercase tracking-widest text-sm mb-2">
               Você subiu para o Nível {levelData.level}!
             </p>
-            <h2 className="text-4xl font-bold font-display mb-4 text-white">{levelData.name}</h2>
-            <p className="text-gray-400 mb-8">Continue avaliando filmes para desbloquear novas conquistas.</p>
+            <h2 className="text-4xl font-bold font-display mb-2 text-white">{levelData.name}</h2>
+
+            {/* Show league multiplier info on league transition */}
+            {isLeagueUp && league && league.xpMultiplier > 1 && (
+              <p className="text-amber-300 font-bold text-sm mb-4">
+                Agora você ganha {league.xpMultiplier}x XP em todas as ações!
+              </p>
+            )}
+
+            {!isLeagueUp && (
+              <p className="text-gray-400 mb-8">Continue avaliando filmes para desbloquear novas conquistas.</p>
+            )}
 
             <button
               onClick={onClose}
               className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:scale-105 transition-transform"
             >
-              Incrível!
+              {isLeagueUp ? 'Vamos lá!' : 'Incrível!'}
             </button>
           </motion.div>
         </motion.div>
       </motion.div>
     )}
   </AnimatePresence>
-);
+  );
+};
 
 /* ──────────── Notifications Modal ──────────── */
 
@@ -165,10 +198,11 @@ export const HelpModal: React.FC<HelpModalProps> = ({ show, onClose }) => (
             <div className="bg-white/5 border border-white/10 p-6 rounded-2xl flex gap-4">
               <div className="mt-1"><Star className="w-6 h-6 text-amber-400" /></div>
               <div>
-                <h3 className="text-xl font-bold text-white mb-2">Sistema de Níveis (XP)</h3>
+                <h3 className="text-xl font-bold text-white mb-2">Sistema de Níveis & Ligas</h3>
                 <p className="text-gray-300 leading-relaxed">
-                  Cada avaliação rende experiência (XP). Suba de nível e evolua de um simples <em>Novato</em> para uma <em>Entidade Cósmica</em> do cinema!
+                  Cada avaliação rende experiência (XP). Suba de nível e evolua de um simples <em>Novato</em> para <em>O Último Frame</em>! São 30 níveis divididos em 5 Ligas, cada uma com multiplicador de XP crescente.
                   <br /><span className="text-sm text-gray-400 mt-2 block">Amei: +20 XP | Gostei: +10 XP | Não Gostei: +5 XP</span>
+                  <span className="text-sm text-amber-300 mt-1 block">Ligas: Iniciante (1.0x) → Cinéfilo (1.1x) → Estrela (1.2x) → Lenda (1.3x) → Cósmica (1.5x)</span>
                 </p>
               </div>
             </div>

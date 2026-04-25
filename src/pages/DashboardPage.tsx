@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2, Pencil, X, Check, Loader2 } from 'lucide-react';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast } from 'sonner';
+import { LEVELS, getLeagueForLevel } from '../constants';
 
 // Admin password is validated server-side only (admin-stats edge function).
 // The frontend never stores or compares the actual password.
@@ -592,7 +593,19 @@ export default function DashboardPage() {
                         <td className="py-3 px-2 font-medium">{p.username || '—'}</td>
                         <td className="py-3 px-2 text-gray-400">{p.email || '—'}</td>
                         <td className="py-3 px-2 text-center text-purple-400 font-bold">{p.xp}</td>
-                        <td className="py-3 px-2 text-center">{p.level}</td>
+                        <td className="py-3 px-2 text-center">
+                          <span className="font-medium">{p.level}</span>
+                          <span className="text-xs text-gray-500 block">
+                            {(() => {
+                              const lvl = LEVELS.find(l => l.level === p.level);
+                              const league = getLeagueForLevel(p.level);
+                              return lvl ? `${lvl.icon} ${lvl.name}` : '';
+                            })()}
+                          </span>
+                          <span className="text-[10px] text-amber-500">
+                            {getLeagueForLevel(p.level).icon} {getLeagueForLevel(p.level).name}
+                          </span>
+                        </td>
                         <td className="py-3 px-2 text-center">
                           <span className={`text-xs px-2 py-0.5 rounded-full ${p.subscription_plan === 'pro' || p.subscription_plan === 'quarterly' || p.subscription_plan === 'annual' ? 'bg-purple-500/10 text-purple-400' : 'bg-gray-500/10 text-gray-400'}`}>{p.subscription_plan || 'free'}</span>
                         </td>

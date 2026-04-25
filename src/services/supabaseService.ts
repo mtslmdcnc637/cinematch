@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { Movie, Rating, type OracleResult } from '../types';
+import { getLevelForXP } from '../constants';
 
 export const supabaseService = {
   // Auth
@@ -140,6 +141,19 @@ export const supabaseService = {
         if (error.code === 'PGRST116') return null;
         throw error;
       }
+
+      // Gamification v2: Auto-fix level if it doesn't match XP
+      // (Users from the old 10-level system may have wrong level values)
+      const correctLevel = getLevelForXP(data.xp);
+      if (data.level !== correctLevel) {
+        // Silently fix the level in the background
+        void supabase
+          .from('profiles')
+          .update({ level: correctLevel })
+          .eq('id', userId);
+        data.level = correctLevel;
+      }
+
       return {
         ...data,
         selectedGenres: data.selected_genres || []
