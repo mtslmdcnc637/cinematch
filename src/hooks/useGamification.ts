@@ -70,6 +70,28 @@ export function useGamification({
     enabled: !!user,
   });
 
+  // ── Auto-check achievements on mount and when stats change ──
+  useEffect(() => {
+    if (!user || totalRatings === 0) return;
+    // Run achievement check silently on mount (don't spam toasts for existing unlocks)
+    gamificationService.checkAndUnlockAchievements(user.id, {
+      totalRatings,
+      lovedCount,
+      genresExplored,
+      maxGenreCount,
+      currentStreak: 0,
+      friendCount,
+      watchlistCount,
+      level,
+      codesRedeemed: 0,
+    }).then(newlyUnlocked => {
+      if (newlyUnlocked.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['achievements', user.id] });
+      }
+    }).catch(() => {}); // Silently fail — achievements will be checked again on next rating
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Only on user change, not on every stats change (to avoid loops)
+
   // ── Record activity (updates streak) ──
   const recordActivity = useCallback(async () => {
     if (!user) return;

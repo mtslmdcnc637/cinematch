@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
 import { gamificationService } from '../services/gamificationService';
 import { fetchMovieById, searchMovies } from '../services/tmdbService';
-import { LEVELS, getLevelForXP, calculateEffectiveXP, isLeagueTransition, getLeagueForLevel, getDailyRatingXPMultiplier, XP_SOURCES } from '../constants';
+import { LEVELS, getLevelForXP, calculateEffectiveXP, isLeagueTransition, getLeagueForLevel, getDailyRatingXPMultiplier, XP_SOURCES, ACHIEVEMENTS, TIER_LABELS } from '../constants';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile, type OracleResult } from '../types';
 import { toast } from 'sonner';
 
@@ -293,6 +293,34 @@ export function useRatings({
             gamificationService.updateChallengeProgress(user.id, 'weekly_rate_25').catch(() => {});
             gamificationService.updateChallengeProgress(user.id, 'monthly_rate_50').catch(() => {});
             gamificationService.updateChallengeProgress(user.id, 'monthly_rate_100').catch(() => {});
+            // Check and unlock achievements (fire-and-forget)
+            gamificationService.checkAndUnlockAchievements(user.id, {
+              totalRatings: newRatings.length,
+              lovedCount: newRatings.filter(r => r.rating === 'loved').length,
+              genresExplored: new Set(newRatings.flatMap(r => r.movie?.genre_ids || [])).size,
+              maxGenreCount: Math.max(0, ...Object.values(newRatings.reduce((acc, r) => {
+                (r.movie?.genre_ids || []).forEach(id => { acc[id] = (acc[id] || 0) + 1; });
+                return acc;
+              }, {} as Record<number, number>))),
+              currentStreak: 0, // Will be checked separately
+              friendCount: 0,
+              watchlistCount: 0,
+              level: newLevel,
+              codesRedeemed: 0,
+            }).then(newlyUnlocked => {
+              if (newlyUnlocked.length > 0) {
+                for (const achievement of newlyUnlocked) {
+                  const def = ACHIEVEMENTS.find(a => a.id === achievement.achievement_id);
+                  const tierDef = def?.tiers.find(t => t.tier === achievement.tier);
+                  if (def && tierDef) {
+                    toast.success(`Conquista desbloqueada: ${def.name} (${TIER_LABELS[tierDef.tier]})`, {
+                      icon: tierDef.icon,
+                      duration: 4000,
+                    });
+                  }
+                }
+              }
+            }).catch(err => console.error('[Gamification] Failed to check achievements:', err));
           }
 
           return { ...prev, xp: newXp, level: newLevel };
