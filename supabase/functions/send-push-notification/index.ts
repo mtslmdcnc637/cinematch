@@ -133,6 +133,23 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+    // Fetch ALL user IDs for in-app notifications (from profiles, not just push_subscriptions)
+    let targetUserIds: string[] = []
+    
+    if (target_user_id) {
+      targetUserIds = [target_user_id]
+    } else {
+      const { data: allProfiles, error: profilesError } = await supabase
+        .from("profiles")
+        .select("id")
+      
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError)
+      } else {
+        targetUserIds = (allProfiles || []).map((p: any) => p.id)
+      }
+    }
+
     // Fetch push subscriptions — all or filtered by target_user_id
     let query = supabase
       .from("push_subscriptions")
@@ -146,25 +163,7 @@ Deno.serve(async (req) => {
 
     if (subsError) {
       console.error("Error fetching push subscriptions:", subsError)
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch push subscriptions" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      )
-    }
-
-    if (!subscriptions || subscriptions.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          push_sent: 0,
-          push_failed: 0,
-          notifications_inserted: 0,
-          message: target_user_id
-            ? "No push subscription found for target user"
-            : "No push subscriptions found",
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      )
+      // Don't fail — we can still insert in-app notifications
     }
 
     // Build the push payload
@@ -175,29 +174,31 @@ Deno.serve(async (req) => {
     let pushFailed = 0
     const invalidSubscriptions: string[] = []
 
-    const pushPromises = subscriptions.map(async (sub) => {
-      try {
-        const pushSubscription = {
-          endpoint: sub.endpoint,
-          keys: {
-            p256dh: sub.p256dh,
-            auth: sub.auth,
-          },
-        }
-        await webpush.sendNotification(pushSubscription, pushPayload)
-        pushSent++
-      } catch (error: any) {
-        pushFailed++
-        console.error(`Push failed for user ${sub.user_id}:`, error?.statusCode, error?.message)
+    if (subscriptions && subscriptions.length > 0) {
+      const pushPromises = subscriptions.map(async (sub: any) => {
+        try {
+          const pushSubscription = {
+            endpoint: sub.endpoint,
+            keys: {
+              p256dh: sub.p256dh,
+              auth: sub.auth,
+            },
+          }
+          await webpush.sendNotification(pushSubscription, pushPayload)
+          pushSent++
+        } catch (error: any) {
+          pushFailed++
+          console.error(`Push failed for user ${sub.user_id}:`, error?.statusCode, error?.message)
 
-        // Track subscriptions that are no longer valid (410 Gone or 404 Not Found)
-        if (error?.statusCode === 410 || error?.statusCode === 404) {
-          invalidSubscriptions.push(sub.user_id)
+          // Track subscriptions that are no longer valid (410 Gone or 404 Not Found)
+          if (error?.statusCode === 410 || error?.statusCode === 404) {
+            invalidSubscriptions.push(sub.user_id)
+          }
         }
-      }
-    })
+      })
 
-    await Promise.all(pushPromises)
+      await Promise.all(pushPromises)
+    }
 
     // Clean up invalid subscriptions (expired/unsubscribed)
     if (invalidSubscriptions.length > 0) {
@@ -211,21 +212,37 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Insert in-app notifications for each target user
-    const uniqueUserIds = [...new Set(subscriptions.map((s) => s.user_id))]
-    const notificationRows = uniqueUserIds.map((userId) => ({
-      user_id: userId,
-      message: notificationBody,
-      is_read: false,
-    }))
+    // Insert in-app notifications for ALL target users (not just those with push)
+    let notificationsInserted = 0
+    
+    if (targetUserIds.length > 0) {
+      const notificationRows = targetUserIds.map((userId: string) => ({
+        user_id: userId,
+        message: notificationBody,
+        is_read: false,
+      }))
 
-    const { error: insertError } = await supabase
-      .from("notifications")
-      .insert(notificationRows)
+      const { error: insertError, data: insertedData } = await supabase
+        .from("notifications")
+        .insert(notificationRows)
+        .select("id")
 
-    if (insertError) {
-      console.error("Error inserting notifications:", insertError)
-      // Don't fail the whole request — push was already sent
+      if (insertError) {
+        console.error("Error inserting notifications:", insertError)
+        // Try inserting one by one to find which ones fail
+        for (const row of notificationRows) {
+          const { error: singleError } = await supabase
+            .from("notifications")
+            .insert(row)
+          if (!singleError) {
+            notificationsInserted++
+          } else {
+            console.error(`Failed to insert notification for user ${row.user_id}:`, singleError)
+          }
+        }
+      } else {
+        notificationsInserted = insertedData?.length || targetUserIds.length
+      }
     }
 
     return new Response(
@@ -233,7 +250,8 @@ Deno.serve(async (req) => {
         success: true,
         push_sent: pushSent,
         push_failed: pushFailed,
-        notifications_inserted: insertError ? 0 : uniqueUserIds.length,
+        notifications_inserted: notificationsInserted,
+        total_target_users: targetUserIds.length,
         cleaned_up_subscriptions: invalidSubscriptions.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
