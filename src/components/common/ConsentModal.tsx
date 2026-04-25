@@ -102,6 +102,8 @@ export const ConsentModal: React.FC<ConsentModalProps> = ({ show, userId, onAcce
       }
 
       toast.success('Preferências de consentimento salvas!');
+      // Cache consent locally so the modal doesn't re-appear on token refresh
+      localStorage.setItem(`lgpd_consent_${userId}`, 'accepted');
       onAccept();
     } catch (err: any) {
       console.error('Error saving consents:', err);

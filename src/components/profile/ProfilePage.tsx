@@ -6,14 +6,13 @@
 import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { User, Bell, Bot, Sparkles, Lock, Camera, Globe, Link, Loader2 } from 'lucide-react';
+import { User, Bot, Sparkles, Lock, Camera, Loader2 } from 'lucide-react';
 import { UserProfile, UserRating, WatchlistItem, type OracleResult, type Movie, type UserAchievement, type UserChallenge, type UserStreak, type LeaderboardEntry } from '../../types';
 import { GENRES, LEVELS, LEAGUES, getLeagueForLevel } from '../../constants';
 import { GamificationPanel } from '../gamification/GamificationPanel';
 import { ProBadge, ProAvatarBorder } from '../common/ProBadge';
 import { toast } from 'sonner';
 import { supabaseService } from '../../services/supabaseService';
-import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 interface ProfilePageProps {
   userProfile: UserProfile;
@@ -43,10 +42,7 @@ interface ProfilePageProps {
   handleGoogleAuth?: () => void;
   selectedGenres?: number[];
   onEditGenres?: () => void;
-  notificationPrefs?: Record<string, boolean>;
-  onUpdatePreference: (key: string, value: boolean) => void;
   avatarUrl?: string | null;
-  isPublicProfile?: boolean;
   onProfileUpdate?: () => void;
   // Gamification v3 props
   streak?: UserStreak | null;
@@ -93,10 +89,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   handleGoogleAuth,
   selectedGenres = [],
   onEditGenres = () => {},
-  notificationPrefs = {},
-  onUpdatePreference,
   avatarUrl,
-  isPublicProfile = false,
   onProfileUpdate = () => {},
   streak = null,
   streakInfo = null,
@@ -118,10 +111,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(avatarUrl || null);
-  const [isPublic, setIsPublic] = useState(isPublicProfile);
-  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
-
-  const pushNotifications = usePushNotifications();
 
   return (
     <motion.div
@@ -304,120 +293,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </div>
             </div>
 
-            <div className="glass-card p-6 rounded-2xl border border-white/10 space-y-4 text-left max-w-md mx-auto mb-8">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Bell className="w-5 h-5 text-purple-400" />
-                Notificações
-              </h3>
-              <div className="space-y-2">
-                {[
-                  { key: 'notify_loved', label: 'Amigos amam um filme' },
-                  { key: 'notify_liked', label: 'Amigos gostam de um filme' },
-                  { key: 'notify_disliked', label: 'Amigos não gostam de um filme' },
-                  { key: 'notify_skipped', label: 'Amigos pulam um filme' },
-                  { key: 'notify_watchlist', label: 'Amigos salvam na lista' },
-                ].map((pref) => (
-                  <label key={pref.key} className="flex items-center gap-3 text-sm text-gray-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notificationPrefs[pref.key as keyof typeof notificationPrefs] || false}
-                      onChange={(e) => onUpdatePreference(pref.key, e.target.checked)}
-                      className="rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
-                    />
-                    {pref.label}
-                  </label>
-                ))}
-              </div>
-            </div>
 
-            {/* Public Profile Toggle */}
-            <div className="glass-card p-6 rounded-2xl border border-white/10 space-y-4 text-left max-w-md mx-auto mb-8">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Globe className="w-5 h-5 text-purple-400" />
-                Perfil Público
-              </h3>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-400">Permitir que outros vejam seu perfil</p>
-                <button
-                  onClick={async () => {
-                    if (!user?.id) return;
-                    setIsTogglingPublic(true);
-                    try {
-                      const newIsPublic = !isPublic;
-                      await supabaseService.updatePublicProfile(user.id, {
-                        is_public: newIsPublic,
-                        username: userProfile.username || '',
-                      });
-                      setIsPublic(newIsPublic);
-                      toast.success(newIsPublic ? 'Perfil público ativado!' : 'Perfil público desativado');
-                      onProfileUpdate();
-                    } catch {
-                      toast.error('Erro ao alterar visibilidade do perfil');
-                    } finally {
-                      setIsTogglingPublic(false);
-                    }
-                  }}
-                  disabled={isTogglingPublic}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    isPublic ? 'bg-purple-600' : 'bg-gray-600'
-                  } disabled:opacity-50`}
-                >
-                  {isTogglingPublic && <Loader2 className="w-3 h-3 animate-spin text-white absolute left-1/2 -translate-x-1/2" />}
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      isPublic ? 'translate-x-6' : 'translate-x-1'
-                    } ${isTogglingPublic ? 'opacity-0' : ''}`}
-                  />
-                </button>
-              </div>
-              {isPublic && userProfile.username && (
-                <div className="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-3 border border-white/10 mt-2">
-                  <Link className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <span className="text-sm text-gray-300 truncate">
-                    mrcine.pro/u/{userProfile.username}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Push Notifications Toggle */}
-            {pushNotifications.isSupported && (
-              <div className="glass-card p-6 rounded-2xl border border-white/10 space-y-4 text-left max-w-md mx-auto mb-8">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-purple-400" />
-                  Notificações Push
-                </h3>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-400">Receber notificações no navegador</p>
-                  <button
-                    onClick={() => {
-                      if (!user?.id) return;
-                      if (pushNotifications.isSubscribed) {
-                        pushNotifications.unsubscribe(user.id);
-                      } else {
-                        pushNotifications.requestAndSubscribe(user.id);
-                      }
-                    }}
-                    disabled={pushNotifications.isSubscribing}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                      pushNotifications.isSubscribed ? 'bg-purple-600' : 'bg-gray-600'
-                    } disabled:opacity-50`}
-                  >
-                    {pushNotifications.isSubscribing && <Loader2 className="w-3 h-3 animate-spin text-white absolute left-1/2 -translate-x-1/2" />}
-                    <span
-                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                        pushNotifications.isSubscribed ? 'translate-x-6' : 'translate-x-1'
-                      } ${pushNotifications.isSubscribing ? 'opacity-0' : ''}`}
-                    />
-                  </button>
-                </div>
-                {pushNotifications.permission === 'denied' && (
-                  <p className="text-xs text-red-400 mt-1">
-                    Notificações bloqueadas pelo navegador. Altere nas configurações do site.
-                  </p>
-                )}
-              </div>
-            )}
 
             <button
               onClick={onSignOut}

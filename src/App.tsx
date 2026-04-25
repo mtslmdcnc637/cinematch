@@ -186,6 +186,10 @@ export default function App() {
   // Check if user needs LGPD consent — only once per session on login
   useEffect(() => {
     if (user && currentPage !== 'onboarding' && supabase) {
+      // Check localStorage first — if already accepted this session, skip DB query
+      const consentKey = `lgpd_consent_${user.id}`;
+      if (localStorage.getItem(consentKey) === 'accepted') return;
+
       supabase
         .from('user_consents')
         .select('id')
@@ -194,7 +198,12 @@ export default function App() {
         .eq('granted', true)
         .maybeSingle()
         .then(({ data }) => {
-          if (!data) setShowConsentModal(true);
+          if (!data) {
+            setShowConsentModal(true);
+          } else {
+            // Already consented in DB — cache it locally so we don't re-check
+            localStorage.setItem(consentKey, 'accepted');
+          }
         });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -305,8 +314,6 @@ export default function App() {
               isOracleLoading={isOracleLoading}
               showExportModal={showExportModal}
               setShowExportModal={setShowExportModal}
-              notificationPrefs={notificationPrefs as unknown as Record<string, boolean>}
-              onUpdatePreference={handleUpdatePreference}
               user={user}
               authEmail={authEmail}
               setAuthEmail={setAuthEmail}
@@ -435,8 +442,6 @@ export default function App() {
                   isOracleLoading={isOracleLoading}
                   showExportModal={showExportModal}
                   setShowExportModal={setShowExportModal}
-                  notificationPrefs={notificationPrefs as unknown as Record<string, boolean>}
-                  onUpdatePreference={handleUpdatePreference}
                   user={user}
                   authEmail={authEmail}
                   setAuthEmail={setAuthEmail}
