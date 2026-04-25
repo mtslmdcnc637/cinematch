@@ -7,8 +7,9 @@ import React, { useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, Bell, Bot, Sparkles, Lock, Camera, Globe, Link, Loader2 } from 'lucide-react';
-import { UserProfile, UserRating, WatchlistItem, type OracleResult, type Movie } from '../../types';
+import { UserProfile, UserRating, WatchlistItem, type OracleResult, type Movie, type UserAchievement, type UserChallenge, type UserStreak, type LeaderboardEntry } from '../../types';
 import { GENRES, LEVELS, LEAGUES, getLeagueForLevel } from '../../constants';
+import { GamificationPanel } from '../gamification/GamificationPanel';
 import { ProBadge, ProAvatarBorder } from '../common/ProBadge';
 import { toast } from 'sonner';
 import { supabaseService } from '../../services/supabaseService';
@@ -47,6 +48,22 @@ interface ProfilePageProps {
   avatarUrl?: string | null;
   isPublicProfile?: boolean;
   onProfileUpdate?: () => void;
+  // Gamification v3 props
+  streak?: UserStreak | null;
+  streakInfo?: {
+    current: number;
+    longest: number;
+    status: 'active' | 'frozen' | 'broken';
+    nextBonus: number | null;
+    nextBonusXP: number;
+  } | null;
+  achievements?: UserAchievement[];
+  achievementStats?: { total: number; unlocked: number; byCategory: Record<string, { total: number; unlocked: number }> };
+  challenges?: UserChallenge[];
+  challengeStats?: { active: number; completed: number; totalXP: number; byType: { daily: UserChallenge[]; weekly: UserChallenge[]; monthly: UserChallenge[] } };
+  leaderboard?: LeaderboardEntry[];
+  userRank?: number | null;
+  isGamificationLoading?: boolean;
 }
 
 export const ProfilePage: React.FC<ProfilePageProps> = ({
@@ -81,6 +98,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   avatarUrl,
   isPublicProfile = false,
   onProfileUpdate = () => {},
+  streak = null,
+  streakInfo = null,
+  achievements = [],
+  achievementStats = { total: 0, unlocked: 0, byCategory: {} },
+  challenges = [],
+  challengeStats = { active: 0, completed: 0, totalXP: 0, byType: { daily: [], weekly: [], monthly: [] } },
+  leaderboard = [],
+  userRank = null,
+  isGamificationLoading = false,
 }) => {
   const navigate = useNavigate();
   const currentLevelData = LEVELS.find(l => l.level === userProfile.level);
@@ -504,6 +530,21 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           }</h3>
           <p className="text-gray-400 font-medium uppercase tracking-wider text-sm">Gênero Top</p>
         </div>
+      </div>
+
+      {/* Gamification Panel */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold font-display mb-6 text-center">Gamificação</h2>
+        <GamificationPanel
+          achievements={achievements}
+          streak={streak}
+          streakInfo={streakInfo}
+          challenges={challenges}
+          leaderboard={leaderboard}
+          userRank={userRank}
+          isPro={isPro}
+          userId={user?.id}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

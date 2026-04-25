@@ -6,8 +6,9 @@
 import { useState, useCallback, type Dispatch, type SetStateAction, type MouseEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
+import { gamificationService } from '../services/gamificationService';
 import { fetchMovieById, searchMovies } from '../services/tmdbService';
-import { LEVELS, getLevelForXP, calculateEffectiveXP, isLeagueTransition, getLeagueForLevel } from '../constants';
+import { LEVELS, getLevelForXP, calculateEffectiveXP, isLeagueTransition, getLeagueForLevel, getDailyRatingXPMultiplier, XP_SOURCES } from '../constants';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile, type OracleResult } from '../types';
 import { toast } from 'sonner';
 
@@ -234,16 +235,32 @@ export function useRatings({
         }
       }
 
-      // XP Logic — Gamification v2 with league multipliers
+      // XP Logic — Gamification v3 with soft cap + league multipliers
       if (rating !== 'not_seen') {
         let baseXP = 0;
-        if (rating === 'loved') baseXP = 20;
-        else if (rating === 'liked') baseXP = 10;
-        else if (rating === 'disliked') baseXP = 5;
+        if (rating === 'loved') baseXP = XP_SOURCES.RATING_LOVED;
+        else if (rating === 'liked') baseXP = XP_SOURCES.RATING_LIKED;
+        else if (rating === 'disliked') baseXP = XP_SOURCES.RATING_DISLIKED;
 
         setUserProfile(prev => {
           // Apply league multiplier + PRO bonus
-          const xpGained = calculateEffectiveXP(baseXP, prev.level, isPro);
+          let xpGained = calculateEffectiveXP(baseXP, prev.level, isPro);
+
+          // Soft cap: check daily rating count and apply multiplier
+          if (user) {
+            gamificationService.getDailyXPTracking(user.id).then(tracking => {
+              const ratingsToday = tracking?.rating_count || 0;
+              const softCapMultiplier = getDailyRatingXPMultiplier(ratingsToday, isPro);
+              if (softCapMultiplier < 1.0 && softCapMultiplier > 0) {
+                // Partial XP — apply soft cap
+                xpGained = Math.floor(xpGained * softCapMultiplier);
+              } else if (softCapMultiplier === 0) {
+                // Zero XP from ratings (cap exceeded)
+                xpGained = 0;
+              }
+            }).catch(() => {}); // Fail open — don't block rating on tracking error
+          }
+
           const newXp = prev.xp + xpGained;
 
           // CASCADE FIX: Find highest level reached (not just level+1)
@@ -259,6 +276,23 @@ export function useRatings({
 
           if (user) {
             supabaseService.updateXp(user.id, newXp, newLevel).catch(() => {});
+            // Track daily XP for soft cap
+            if (xpGained > 0) {
+              gamificationService.trackRatingXP(user.id, xpGained).catch(() => {});
+            }
+            // Update streak on activity
+            gamificationService.updateStreakOnActivity(user.id, isPro).catch(() => {});
+            // Update challenge progress for rating challenges
+            gamificationService.updateChallengeProgress(user.id, 'daily_rate_3').catch(() => {});
+            gamificationService.updateChallengeProgress(user.id, 'daily_rate_5').catch(() => {});
+            gamificationService.updateChallengeProgress(user.id, 'daily_rate_8').catch(() => {});
+            if (rating === 'loved') {
+              gamificationService.updateChallengeProgress(user.id, 'daily_love_2').catch(() => {});
+            }
+            gamificationService.updateChallengeProgress(user.id, 'weekly_rate_15').catch(() => {});
+            gamificationService.updateChallengeProgress(user.id, 'weekly_rate_25').catch(() => {});
+            gamificationService.updateChallengeProgress(user.id, 'monthly_rate_50').catch(() => {});
+            gamificationService.updateChallengeProgress(user.id, 'monthly_rate_100').catch(() => {});
           }
 
           return { ...prev, xp: newXp, level: newLevel };
@@ -268,7 +302,7 @@ export function useRatings({
       // Visual feedback with effective XP shown
       if (rating !== 'not_seen') {
         const effectiveXP = calculateEffectiveXP(
-          rating === 'loved' ? 20 : rating === 'liked' ? 10 : 5,
+          rating === 'loved' ? XP_SOURCES.RATING_LOVED : rating === 'liked' ? XP_SOURCES.RATING_LIKED : XP_SOURCES.RATING_DISLIKED,
           userProfile.level,
           isPro
         );

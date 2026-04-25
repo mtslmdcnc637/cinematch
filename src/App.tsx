@@ -15,6 +15,8 @@ import { useRatings } from './hooks/useRatings';
 import { useFriends } from './hooks/useFriends';
 import { useProfile } from './hooks/useProfile';
 import { useAnalytics } from './hooks/useAnalytics';
+import { useGamification } from './hooks/useGamification';
+import { GamificationPanel } from './components/gamification/GamificationPanel';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Header } from './components/common/Header';
 import { LevelUpModal, NotificationsModal, HelpModal } from './components/common/Modals';
@@ -93,6 +95,41 @@ export default function App() {
     incrementSwipes, isPro,
     onNavigateToPricing: handleNavigateToPricing,
     friends,
+  });
+
+  // Gamification stats computed from ratings
+  const gamificationStats = React.useMemo(() => {
+    const genreCounts: Record<number, number> = {};
+    const genreSet = new Set<number>();
+    ratings.forEach(r => {
+      if (r.movie?.genre_ids) {
+        r.movie.genre_ids.forEach(id => {
+          genreCounts[id] = (genreCounts[id] || 0) + 1;
+          genreSet.add(id);
+        });
+      }
+    });
+    const maxGenreCount = Math.max(0, ...Object.values(genreCounts));
+    return {
+      totalRatings: ratings.length,
+      lovedCount: ratings.filter(r => r.rating === 'loved').length,
+      genresExplored: genreSet.size,
+      maxGenreCount,
+      watchlistCount: watchlist.length,
+      friendCount: friends.length,
+      level: userProfile.level,
+    };
+  }, [ratings, watchlist, friends, userProfile.level]);
+
+  const {
+    streak, streakInfo, achievements, achievementStats,
+    challenges, challengeStats, leaderboard, userRank,
+    recordActivity, checkAchievements, updateChallengeProgress,
+    isLoading: isGamificationLoading,
+  } = useGamification({
+    user,
+    isPro,
+    ...gamificationStats,
   });
 
   // Movies
@@ -413,6 +450,15 @@ export default function App() {
                   handleGoogleAuth={handleGoogleAuth}
                   selectedGenres={selectedGenres}
                   onEditGenres={() => setCurrentPage('onboarding')}
+                  streak={streak}
+                  streakInfo={streakInfo}
+                  achievements={achievements}
+                  achievementStats={achievementStats}
+                  challenges={challenges}
+                  challengeStats={challengeStats}
+                  leaderboard={leaderboard}
+                  userRank={userRank}
+                  isGamificationLoading={isGamificationLoading}
                 />
               </ErrorBoundary>
             )}
