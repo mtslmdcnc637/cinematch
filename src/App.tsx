@@ -157,7 +157,7 @@ export default function App() {
     // If redirected from pricing, send them back there
     const redirect = params.get('redirect');
     if (redirect) {
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', '/login');
       navigate(redirect);
       return;
     }
@@ -165,8 +165,8 @@ export default function App() {
     if (params.get('action') === 'login') {
       setIsSignUp(false);
       setCurrentPage('profile');
-      // Clean the URL
-      window.history.replaceState({}, '', '/');
+      // Clean the URL — keep /login to stay in App, not QuizApp
+      window.history.replaceState({}, '', '/login');
     }
   }, [user]);
 
@@ -183,7 +183,7 @@ export default function App() {
     }
   }, [currentPage, trackPageView]);
 
-  // Check if user needs LGPD consent
+  // Check if user needs LGPD consent — only once per session on login
   useEffect(() => {
     if (user && currentPage !== 'onboarding' && supabase) {
       supabase
@@ -197,7 +197,8 @@ export default function App() {
           if (!data) setShowConsentModal(true);
         });
     }
-  }, [user, currentPage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]); // Only re-run when user changes (login/logout), NOT on every page change
 
   const getRatingIcon = (rating: string, className = "w-5 h-5") => {
     switch (rating) {
