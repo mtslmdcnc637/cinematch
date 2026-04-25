@@ -90,7 +90,7 @@ export function useGamification({
       }
     }).catch(() => {}); // Silently fail — achievements will be checked again on next rating
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]); // Only on user change, not on every stats change (to avoid loops)
+  }, [user?.id, totalRatings]); // Re-check when ratings data loads
 
   // ── Record activity (updates streak) ──
   const recordActivity = useCallback(async () => {
