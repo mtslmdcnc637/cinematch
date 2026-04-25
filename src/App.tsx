@@ -31,6 +31,8 @@ import { OracleModal } from './components/oracle/OracleModal';
 import { ConsentModal } from './components/common/ConsentModal';
 import { AppInstallBanner } from './components/common/AppInstallBanner';
 import { supabase } from './lib/supabase';
+import { supabaseService } from './services/supabaseService';
+import { usePushNotifications } from './hooks/usePushNotifications';
 
 const navItems = [
   { id: 'feed', label: 'Descobrir', icon: Sparkles },
@@ -71,6 +73,9 @@ export default function App() {
   } = useProfile({
     user,
   });
+
+  // Push notifications
+  const pushNotifications = usePushNotifications();
 
   // Friends
   const {
@@ -176,6 +181,17 @@ export default function App() {
     loadUserData(setRatings, setWatchlist);
   }, [user, loadUserData, setRatings, setWatchlist]);
 
+  // Register Service Worker for push notifications
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(() => {
+        console.log('[SW] Service Worker registered');
+      }).catch((err) => {
+        console.warn('[SW] Service Worker registration failed:', err);
+      });
+    }
+  }, []);
+
   // Track page views
   useEffect(() => {
     if (currentPage) {
@@ -249,7 +265,16 @@ export default function App() {
         <LevelUpModal show={showLevelUpModal} levelData={newLevelData} onClose={() => setShowLevelUpModal(false)} />
       </ErrorBoundary>
       <ErrorBoundary>
-        <NotificationsModal show={showNotificationsModal} notifications={notifications} onClose={() => setShowNotificationsModal(false)} />
+        <NotificationsModal
+          show={showNotificationsModal}
+          notifications={notifications}
+          onClose={() => setShowNotificationsModal(false)}
+          userId={user?.id || null}
+          pushNotifications={pushNotifications}
+          onMarkAsRead={(id) => {
+            if (user) supabaseService.markNotificationAsRead(user.id, id);
+          }}
+        />
       </ErrorBoundary>
       <ErrorBoundary>
         <HelpModal show={showHelpModal} onClose={() => setShowHelpModal(false)} />

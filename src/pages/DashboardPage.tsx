@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2, Pencil, X, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2, Pencil, X, Check, Loader2, Bell, Send } from 'lucide-react';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast } from 'sonner';
 import { LEVELS, getLeagueForLevel } from '../constants';
@@ -54,7 +54,7 @@ interface SecretCode {
   updated_at: string | null;
 }
 
-type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes';
+type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes' | 'notifications';
 
 // ─── API Helper ───
 const API_BASE = '/api/admin/secret-codes';
@@ -93,6 +93,13 @@ export default function DashboardPage() {
   const [editingCode, setEditingCode] = useState<SecretCode | null>(null);
   const [editForm, setEditForm] = useState({ code: '', title: '', description: '', movieIds: '' });
   const [codeActionLoading, setCodeActionLoading] = useState<string | null>(null);
+
+  // Notification broadcast
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody] = useState('');
+  const [notifUrl, setNotifUrl] = useState('');
+  const [notifTargetUser, setNotifTargetUser] = useState('');
+  const [isSendingNotif, setIsSendingNotif] = useState(false);
 
   // Check if already authenticated (session storage)
   useEffect(() => {
@@ -375,6 +382,7 @@ export default function DashboardPage() {
     { id: 'responses', label: 'Respostas', icon: Mail },
     { id: 'profiles', label: 'Usuários', icon: Users },
     { id: 'codes', label: 'Códigos', icon: Key },
+    { id: 'notifications', label: 'Notificações', icon: Bell },
   ];
 
   const funnelData = funnelSteps();
@@ -618,6 +626,121 @@ export default function DashboardPage() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* ─── NOTIFICATIONS TAB ─── */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                <Send className="w-5 h-5 text-purple-400" />
+                Enviar Notificação
+              </h3>
+              <p className="text-gray-400 text-sm mb-4">
+                Envie notificações push e in-app para os usuários. Deixe o campo "Usuário" vazio para enviar para todos.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Título *</label>
+                  <input
+                    type="text"
+                    value={notifTitle}
+                    onChange={e => setNotifTitle(e.target.value)}
+                    placeholder="ex: Novo filme adicionado!"
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Mensagem *</label>
+                  <textarea
+                    value={notifBody}
+                    onChange={e => setNotifBody(e.target.value)}
+                    placeholder="ex: Confira o novo filme de terror que acabou de chegar..."
+                    rows={3}
+                    className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50 resize-none"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">URL (opcional)</label>
+                    <input
+                      type="text"
+                      value={notifUrl}
+                      onChange={e => setNotifUrl(e.target.value)}
+                      placeholder="ex: /feed"
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">ID do Usuário (opcional)</label>
+                    <input
+                      type="text"
+                      value={notifTargetUser}
+                      onChange={e => setNotifTargetUser(e.target.value)}
+                      placeholder="Vazio = todos os usuários"
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!notifTitle || !notifBody) {
+                      toast.error('Título e mensagem são obrigatórios');
+                      return;
+                    }
+                    setIsSendingNotif(true);
+                    try {
+                      const result = await invokeEdgeFunction<any>('send-push-notification', {
+                        admin_password: password,
+                        title: notifTitle,
+                        body: notifBody,
+                        url: notifUrl || undefined,
+                        target_user_id: notifTargetUser || undefined,
+                      });
+                      toast.success(`Notificação enviada! Push: ${result.push_sent}/${result.push_sent + result.push_failed} | In-app: ${result.notifications_inserted} usuários`);
+                      setNotifTitle('');
+                      setNotifBody('');
+                      setNotifUrl('');
+                      setNotifTargetUser('');
+                    } catch (err: any) {
+                      toast.error(`Erro: ${err.message}`);
+                    } finally {
+                      setIsSendingNotif(false);
+                    }
+                  }}
+                  disabled={isSendingNotif || !notifTitle || !notifBody}
+                  className="px-6 py-2 bg-purple-600 rounded-lg font-medium hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSendingNotif ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Enviar Notificação
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                <Bell className="w-5 h-5 text-amber-400" />
+                Informações
+              </h3>
+              <div className="space-y-3 text-sm text-gray-400">
+                <p>As notificações são entregues de duas formas:</p>
+                <div className="flex items-start gap-3 bg-white/5 rounded-lg p-3">
+                  <Bell className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-medium">In-App</p>
+                    <p>Aparece no ícone de notificações dentro do MrCine. Entregue para todos os usuários alvo.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 bg-white/5 rounded-lg p-3">
+                  <Send className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-medium">Push</p>
+                    <p>Notificação no dispositivo (celular/desktop). Só funciona para usuários que ativaram push no app. Se nenhum push foi enviado, os usuários ainda receberão in-app.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

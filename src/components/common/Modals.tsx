@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Film, Star, Bot, Library, Trophy } from 'lucide-react';
+import { X, Sparkles, Film, Star, Bot, Library, Trophy, Bell } from 'lucide-react';
 import { isLeagueTransition, getLeagueForLevel, LEAGUES } from '../../constants';
 
 /* ──────────── Level Up Modal ──────────── */
@@ -108,37 +108,137 @@ interface NotificationsModalProps {
   show: boolean;
   notifications: any[];
   onClose: () => void;
+  userId: string | null;
+  pushNotifications: {
+    isSupported: boolean;
+    permission: NotificationPermission;
+    isSubscribed: boolean;
+    isSubscribing: boolean;
+    requestAndSubscribe: (userId: string) => Promise<void>;
+    unsubscribe: (userId: string) => Promise<void>;
+  };
+  onMarkAsRead: (id: string) => void;
 }
 
-export const NotificationsModal: React.FC<NotificationsModalProps> = ({ show, notifications, onClose }) => {
+export const NotificationsModal: React.FC<NotificationsModalProps> = ({
+  show, notifications, onClose, userId, pushNotifications, onMarkAsRead
+}) => {
   if (!show) return null;
+
+  const { isSupported, isSubscribed, isSubscribing, requestAndSubscribe, unsubscribe } = pushNotifications;
+  const unreadCount = notifications.filter((n: any) => !n.is_read).length;
+
+  const handlePushToggle = async () => {
+    if (!userId) return;
+    if (isSubscribed) {
+      await unsubscribe(userId);
+    } else {
+      await requestAndSubscribe(userId);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl p-8 max-w-md w-full max-h-[80vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold text-white mb-4">Notificações</h2>
-        {notifications.length === 0 ? (
-          <p className="text-gray-400">Nenhuma notificação.</p>
-        ) : (
-          <div className="space-y-4">
-            {notifications.map((n) => (
-              <div
-                key={n.id}
-                className={`p-4 rounded-lg border ${n.is_read ? 'bg-white/5 border-white/10' : 'bg-purple-900/20 border-purple-500/30'}`}
-              >
-                <p className="text-white">{n.message}</p>
-                <p className="text-xs text-gray-400 mt-2">{new Date(n.created_at).toLocaleDateString()}</p>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] overflow-y-auto bg-black/80 backdrop-blur-xl"
+        onClick={onClose}
+      >
+        <div className="flex min-h-full items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.9, y: 20, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.9, y: 20, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-md w-full max-h-[85vh] overflow-y-auto my-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-2xl font-bold text-white">Notificações</h2>
+              {unreadCount > 0 && (
+                <span className="bg-purple-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                  {unreadCount} nova{unreadCount > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+
+            {/* Push notification toggle */}
+            {isSupported && userId && (
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium text-sm">Notificações Push</p>
+                    <p className="text-gray-400 text-xs mt-0.5">
+                      {isSubscribed
+                        ? 'Você receberá notificações no dispositivo'
+                        : 'Ative para receber alertas mesmo com o app fechado'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handlePushToggle}
+                    disabled={isSubscribing}
+                    className={`relative w-12 h-7 rounded-full transition-all duration-300 ${
+                      isSubscribed ? 'bg-purple-500' : 'bg-gray-600'
+                    } ${isSubscribing ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                    <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${
+                      isSubscribed ? 'translate-x-5.5' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-        <button
-          onClick={onClose}
-          className="w-full py-3 mt-6 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors"
-        >
-          Fechar
-        </button>
-      </div>
-    </div>
+            )}
+
+            {notifications.length === 0 ? (
+              <div className="text-center py-8">
+                <Bell className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+                <p className="text-gray-400">Nenhuma notificação ainda.</p>
+                <p className="text-gray-500 text-xs mt-1">Fique ligado, novidades estão por vir!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map((n: any) => (
+                  <div
+                    key={n.id}
+                    onClick={() => !n.is_read && onMarkAsRead(n.id)}
+                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                      n.is_read
+                        ? 'bg-white/5 border-white/10 hover:bg-white/8'
+                        : 'bg-purple-900/20 border-purple-500/30 hover:bg-purple-900/30'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      {!n.is_read && (
+                        <div className="w-2 h-2 bg-purple-400 rounded-full mt-2 shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm ${n.is_read ? 'text-gray-300' : 'text-white font-medium'}`}>
+                          {n.message}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1.5">
+                          {new Date(n.created_at).toLocaleString('pt-BR', {
+                            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={onClose}
+              className="w-full py-3 mt-6 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors"
+            >
+              Fechar
+            </button>
+          </motion.div>
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 
