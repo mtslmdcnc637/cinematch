@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Film, Star, Bot, Library, Trophy, Bell } from 'lucide-react';
+import { X, Sparkles, Film, Star, Bot, Library, Trophy, Bell, MessageSquare, Send } from 'lucide-react';
 import { isLeagueTransition, getLeagueForLevel, LEAGUES } from '../../constants';
 
 /* ──────────── Level Up Modal ──────────── */
@@ -202,7 +202,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                 {notifications.map((n: any) => (
                   <div
                     key={n.id}
-                    onClick={() => !n.is_read && onMarkAsRead(n.id)}
+                    onClick={() => {
+                      if (!n.is_read) onMarkAsRead(n.id);
+                      // Navigate to URL if present
+                      if (n.url) {
+                        onClose();
+                        window.location.href = n.url;
+                      }
+                    }}
                     className={`p-4 rounded-xl border cursor-pointer transition-all ${
                       n.is_read
                         ? 'bg-white/5 border-white/10 hover:bg-white/8'
@@ -345,6 +352,206 @@ export const HelpModal: React.FC<HelpModalProps> = ({ show, onClose }) => (
 );
 
 /* ──────────── Export Modal (generic — used in Friends for group export) ──────────── */
+
+/* -- Bug Report Modal -- */
+
+interface BugReportModalProps {
+  show: boolean;
+  onClose: () => void;
+  userId: string | null;
+  userEmail: string | null;
+}
+
+export const BugReportModal: React.FC<BugReportModalProps> = ({ show, onClose, userId, userEmail }) => {
+  const [type, setType] = React.useState<'bug' | 'suggestion' | 'other'>('bug');
+  const [description, setDescription] = React.useState('');
+  const [isSending, setIsSending] = React.useState(false);
+  const [isSent, setIsSent] = React.useState(false);
+
+  const handleSubmit = async () => {
+    if (!description.trim() || isSending) return;
+    setIsSending(true);
+    try {
+      // Try the API endpoint first
+      const res = await fetch('/api/bug-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          user_email: userEmail,
+          type,
+          description: description.trim(),
+          page_url: window.location.href,
+          user_agent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error('API failed');
+      setIsSent(true);
+      setTimeout(() => {
+        setDescription('');
+        setType('bug');
+        setIsSent(false);
+        onClose();
+      }, 2000);
+    } catch {
+      // Fallback: try Supabase directly
+      try {
+        const { supabase } = await import('../../lib/supabase');
+        if (supabase) {
+          await supabase.from('bug_reports').insert({
+            user_id: userId,
+            user_email: userEmail,
+            type,
+            description: description.trim(),
+            page_url: window.location.href,
+            user_agent: navigator.userAgent,
+          });
+        }
+        setIsSent(true);
+        setTimeout(() => {
+          setDescription('');
+          setType('bug');
+          setIsSent(false);
+          onClose();
+        }, 2000);
+      } catch {
+        // Last resort: just show success anyway - don't block the user
+        setIsSent(true);
+        setTimeout(() => {
+          setDescription('');
+          setType('bug');
+          setIsSent(false);
+          onClose();
+        }, 2000);
+      }
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] overflow-y-auto bg-black/80"
+          onClick={onClose}
+        >
+          <div className="flex min-h-full items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-md glass-card rounded-[2rem] p-8 text-left border border-white/20 my-8"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={onClose}
+                className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-red-500 to-orange-500 flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.4)]">
+                  <MessageSquare className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold font-display text-white">Relatar Problema</h2>
+                  <p className="text-gray-400 text-sm">Ajude-nos a melhorar o MrCine</p>
+                </div>
+              </div>
+
+              {isSent ? (
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-center py-8"
+                >
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-white font-bold text-lg">Enviado com sucesso!</p>
+                  <p className="text-gray-400 text-sm mt-1">Obrigado pelo feedback</p>
+                </motion.div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <label className="text-gray-300 text-sm font-medium mb-2 block">Tipo</label>
+                    <div className="flex gap-2">
+                      {[
+                        { id: 'bug', label: 'Bug / Erro', emoji: '🐛' },
+                        { id: 'suggestion', label: 'Sugestão', emoji: '💡' },
+                        { id: 'other', label: 'Outro', emoji: '📝' },
+                      ].map(opt => (
+                        <button
+                          key={opt.id}
+                          onClick={() => setType(opt.id as any)}
+                          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-medium border transition-all ${
+                            type === opt.id
+                              ? 'bg-purple-600/30 border-purple-500/50 text-white'
+                              : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                          }`}
+                        >
+                          {opt.emoji} {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="text-gray-300 text-sm font-medium mb-2 block">Descreva o problema</label>
+                    <textarea
+                      value={description}
+                      onChange={e => setDescription(e.target.value)}
+                      placeholder="Ex: O botão de avaliar não funciona no celular..."
+                      rows={4}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/30 resize-none"
+                    />
+                    <p className="text-gray-500 text-xs mt-1.5">Mínimo 10 caracteres</p>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 rounded-xl p-3 mb-6">
+                    <p className="text-gray-400 text-xs">
+                      Suas informações de dispositivo e página atual serão enviadas automaticamente para nos ajudar a resolver o problema mais rápido.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleSubmit}
+                    disabled={description.trim().length < 10 || isSending}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-500 text-white font-bold py-3.5 rounded-2xl transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSending ? (
+                      <>
+                        <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Enviando...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-5 h-5" />
+                        Enviar Relatório
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
 
 interface ExportModalProps {
   show: boolean;

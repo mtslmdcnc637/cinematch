@@ -299,8 +299,39 @@ export function useMovies({
           if (user) {
             await supabaseService.saveDailyTip(user.id, randomMovie.id);
           }
+        } else if (tipMovies.length > 0) {
+          // Fallback: show a movie even if already seen
+          const randomMovie = tipMovies[Math.floor(Math.random() * tipMovies.length)];
+          setDailyTip(randomMovie);
+          setDailyTipReason(reason);
+          if (user) {
+            await supabaseService.saveDailyTip(user.id, randomMovie.id);
+          }
         } else {
-          setDailyTip(null);
+          // Try a different genre if no results
+          const fallbackGenre = GENRES[Math.floor(Math.random() * GENRES.length)].id;
+          const fallbackGenreName = GENRES.find(g => g.id === fallbackGenre)?.name;
+          try {
+            const fallbackData = await tmdbFetch<{ results: Movie[] }>('discover/movie', {
+              language: 'pt-BR',
+              page: '1',
+              with_genres: String(fallbackGenre),
+              sort_by: 'popularity.desc',
+            });
+            const fallbackMovies = fallbackData.results ?? [];
+            if (fallbackMovies.length > 0) {
+              const randomMovie = fallbackMovies[Math.floor(Math.random() * fallbackMovies.length)];
+              setDailyTip(randomMovie);
+              setDailyTipReason(`Dica de ${fallbackGenreName} para você`);
+              if (user) {
+                await supabaseService.saveDailyTip(user.id, randomMovie.id);
+              }
+            } else {
+              setDailyTip(null);
+            }
+          } catch {
+            setDailyTip(null);
+          }
         }
       } catch {
         setDailyTip(null);

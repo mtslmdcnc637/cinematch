@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Star, Calendar, PlayCircle, Bookmark, Share2 } from 'lucide-react';
 import { Movie, Rating } from '../../types';
 import { WhereToWatch } from './WhereToWatch';
+import { MovieDetailModal } from './MovieDetailModal';
 
 interface MovieCardProps {
   movie: Movie;
@@ -51,7 +52,9 @@ export const MovieCard: React.FC<MovieCardProps> = ({
   ratingAnimation,
   onShare,
 }) => {
+  const [showDetail, setShowDetail] = React.useState(false);
   return (
+    <>
     <AnimatePresence mode="popLayout">
       <motion.div
         key={movie.id}
@@ -67,7 +70,8 @@ export const MovieCard: React.FC<MovieCardProps> = ({
             <img
               src={`https://image.tmdb.org/t/p/w780${movie.poster_path}`}
               alt={movie.title}
-              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 cursor-pointer"
+              onClick={() => setShowDetail(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-600">
@@ -105,14 +109,14 @@ export const MovieCard: React.FC<MovieCardProps> = ({
             <div className="flex items-center gap-3 mb-3">
               <span className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-amber-400">
                 <Star className="w-4 h-4 fill-amber-400" />
-                {movie.vote_average.toFixed(1)}
+                {(movie.vote_average ?? 0).toFixed(1)}
               </span>
               <span className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-gray-300">
                 <Calendar className="w-4 h-4" />
                 {movie.release_date?.split('-')[0]}
               </span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight break-words">
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight break-words cursor-pointer hover:text-purple-300 transition-colors" onClick={() => setShowDetail(true)}>
               {movie.title}
             </h2>
             <p className="text-gray-300 text-sm leading-relaxed mb-12 line-clamp-4">{movie.overview}</p>
@@ -154,6 +158,17 @@ export const MovieCard: React.FC<MovieCardProps> = ({
           />
         </div>
       </motion.div>
+      
     </AnimatePresence>
+    <MovieDetailModal
+        show={showDetail}
+        movie={movie}
+        onClose={() => setShowDetail(false)}
+        onRate={onRate}
+        onAddToWatchlist={onAddToWatchlist}
+        isPro={isPro}
+        getRating={() => undefined}
+      />
+    </>
   );
 };

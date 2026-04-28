@@ -29,6 +29,30 @@ export default function PricingPage() {
     }
   }, []);
 
+  // TikTok Pixel — dispara CompletePayment com valor real após detectar o plano
+  useEffect(() => {
+    if (!showSuccess || planType === 'free') return;
+    const planValues: Record<string, number> = {
+      monthly: 9.00,
+      quarterly: 24.00,
+      annual: 69.00,
+    };
+    const value = planValues[planType] ?? 0;
+    try {
+      if (window.ttq) {
+        window.ttq.track('CompletePayment', {
+          content_type: 'product',
+          quantity: 1,
+          currency: 'BRL',
+          value: value,
+          content_name: `MrCine PRO ${planType === 'monthly' ? 'Mensal' : planType === 'quarterly' ? 'Trimestral' : 'Anual'}`,
+        });
+      }
+    } catch (e) {
+      console.warn('[TikTok Pixel] Erro ao disparar CompletePayment:', e);
+    }
+  }, [showSuccess, planType]);
+
   const handleSubscribe = async (planId: string) => {
     setIsLoading(planId);
 

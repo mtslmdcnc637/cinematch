@@ -84,6 +84,10 @@ export const FeedPage: React.FC<FeedPageProps> = ({
           ratingAnimation={ratingAnimation}
           onShare={onShare}
         />
+      ) : isLoadingMore ? (
+        <div className="w-full aspect-[2/3] rounded-[2rem] glass-card animate-pulse flex items-center justify-center mt-4">
+          <Sparkles className="w-12 h-12 text-white/20 animate-spin-slow" />
+        </div>
       ) : (
         <div className="text-center py-20 glass-card rounded-[2rem] w-full px-8 mt-4">
           <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-purple-500/30">

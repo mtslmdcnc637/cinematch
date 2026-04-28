@@ -10,7 +10,7 @@ export const gamificationService = {
       .from('user_streaks')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     if (error) {
       if (error.code === 'PGRST116') return null; // No row found
       throw error;
@@ -124,7 +124,7 @@ export const gamificationService = {
       .eq('user_id', userId)
       .eq('achievement_id', achievementId)
       .eq('tier', tier)
-      .single();
+      .maybeSingle();
     
     if (existing) return null; // Already unlocked
 
@@ -136,7 +136,7 @@ export const gamificationService = {
         tier,
       })
       .select()
-      .single();
+      .maybeSingle();
     
     if (error) throw error;
     return data;
@@ -270,7 +270,7 @@ export const gamificationService = {
           assigned_date: today,
         })
         .select()
-        .single();
+        .maybeSingle();
       
       if (!error && data) challenges.push(data);
     }
@@ -293,7 +293,7 @@ export const gamificationService = {
       .gte('assigned_date', today) // Only today's or newer
       .order('assigned_date', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
     
     if (!challenge) return null;
 
@@ -309,7 +309,7 @@ export const gamificationService = {
       })
       .eq('id', challenge.id)
       .select()
-      .single();
+      .maybeSingle();
     
     if (error) throw error;
     return data;
@@ -324,7 +324,7 @@ export const gamificationService = {
       .select('*')
       .eq('user_id', userId)
       .eq('date', today)
-      .single();
+      .maybeSingle();
     if (error) {
       if (error.code === 'PGRST116') return null;
       throw error;
@@ -350,7 +350,7 @@ export const gamificationService = {
         .eq('user_id', userId)
         .eq('date', today)
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     }
@@ -365,7 +365,7 @@ export const gamificationService = {
         xp_from_ratings: xpGained,
       })
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
     return data;
   },

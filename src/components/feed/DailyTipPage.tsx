@@ -7,14 +7,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, ThumbsUp, ThumbsDown, EyeOff, Film, Star, Calendar, Lightbulb, PlayCircle, Bookmark, Share2, RefreshCw } from 'lucide-react';
 import { Movie, Rating } from '../../types';
-import { GENRES } from '../../constants';
 import { WhereToWatch } from './WhereToWatch';
 
 interface DailyTipPageProps {
   dailyTip: Movie | null;
   dailyTipReason: string;
-  dailyTipGenre: number | null;
-  setDailyTipGenre: (genre: number | null) => void;
   isLoadingTip: boolean;
   generateDailyTip: (forceReload?: boolean) => void;
   isPro: boolean;
@@ -46,31 +43,9 @@ function RatingButton({ onClick, icon, colorClass, tooltip, large = false }: any
   );
 }
 
-const GenreFilter = ({ active, onChange }: { active: number | null; onChange: (id: number | null) => void }) => (
-  <div className="flex overflow-x-auto no-scrollbar gap-2 py-4 px-4 -mx-4 mb-4 w-full max-w-md">
-    <button
-      onClick={() => onChange(null)}
-      className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors border ${active === null ? 'bg-purple-600 text-white border-purple-500' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
-    >
-      Todos
-    </button>
-    {GENRES.map(g => (
-      <button
-        key={g.id}
-        onClick={() => onChange(g.id)}
-        className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors border ${active === g.id ? 'bg-purple-600 text-white border-purple-500' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
-      >
-        {g.name}
-      </button>
-    ))}
-  </div>
-);
-
 export const DailyTipPage: React.FC<DailyTipPageProps> = ({
   dailyTip,
   dailyTipReason,
-  dailyTipGenre,
-  setDailyTipGenre,
   isLoadingTip,
   generateDailyTip,
   isPro,
@@ -101,8 +76,6 @@ export const DailyTipPage: React.FC<DailyTipPageProps> = ({
           <RefreshCw className="w-5 h-5 text-gray-300" />
         </button>
       </div>
-
-      <GenreFilter active={dailyTipGenre} onChange={setDailyTipGenre} />
 
       {isLoadingTip ? (
         <div className="w-full aspect-[2/3] rounded-[2rem] glass-card animate-pulse flex items-center justify-center mt-4">
@@ -156,7 +129,7 @@ export const DailyTipPage: React.FC<DailyTipPageProps> = ({
               <div className="flex items-center gap-3 mb-3">
                 <span className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-amber-400">
                   <Star className="w-4 h-4 fill-amber-400" />
-                  {dailyTip.vote_average.toFixed(1)}
+                  {(dailyTip.vote_average ?? 0).toFixed(1)}
                 </span>
                 <span className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-sm font-medium text-gray-300">
                   <Calendar className="w-4 h-4" />
@@ -223,7 +196,7 @@ export const DailyTipPage: React.FC<DailyTipPageProps> = ({
       ) : (
         <div className="text-center py-20 glass-card rounded-[2rem] w-full px-8 mt-4">
           <Lightbulb className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400">Não encontramos uma dica no momento. Tente outro gênero ou avalie mais filmes!</p>
+          <p className="text-gray-400">Não encontramos uma dica no momento. Tente novamente ou avalie mais filmes!</p>
         </div>
       )}
     </motion.div>

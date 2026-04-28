@@ -203,7 +203,7 @@ export default function DicaPage() {
                           <div className="flex items-center gap-1 shrink-0 bg-yellow-500/10 px-2 py-0.5 rounded-full">
                             <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                             <span className="text-xs text-yellow-300 font-medium">
-                              {movie.vote_average.toFixed(1)}
+                              {(movie.vote_average ?? 0).toFixed(1)}
                             </span>
                           </div>
                         )}

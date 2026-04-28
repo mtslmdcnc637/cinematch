@@ -161,7 +161,7 @@ export const OracleModal: React.FC<OracleModalProps> = ({
                               {tmdbMovie?.vote_average && tmdbMovie.vote_average > 0 && (
                                 <span className="flex items-center gap-1 text-yellow-400">
                                   <Star className="w-3 h-3 fill-current" />
-                                  {tmdbMovie.vote_average.toFixed(1)}
+                                  {(tmdbMovie.vote_average ?? 0).toFixed(1)}
                                 </span>
                               )}
                             </div>

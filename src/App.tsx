@@ -15,11 +15,9 @@ import { useRatings } from './hooks/useRatings';
 import { useFriends } from './hooks/useFriends';
 import { useProfile } from './hooks/useProfile';
 import { useAnalytics } from './hooks/useAnalytics';
-import { useGamification } from './hooks/useGamification';
-import { GamificationPanel } from './components/gamification/GamificationPanel';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Header } from './components/common/Header';
-import { LevelUpModal, NotificationsModal, HelpModal } from './components/common/Modals';
+import { LevelUpModal, NotificationsModal, HelpModal, BugReportModal } from './components/common/Modals';
 import { OnboardingPage } from './components/onboarding/OnboardingPage';
 import { FeedPage } from './components/feed/FeedPage';
 import { DailyTipPage } from './components/feed/DailyTipPage';
@@ -31,8 +29,18 @@ import { OracleModal } from './components/oracle/OracleModal';
 import { ConsentModal } from './components/common/ConsentModal';
 import { AppInstallBanner } from './components/common/AppInstallBanner';
 import { supabase } from './lib/supabase';
-import { supabaseService } from './services/supabaseService';
-import { usePushNotifications } from './hooks/usePushNotifications';
+import { Helmet } from 'react-helmet-async';
+
+// Map currentPage to friendly GA titles
+const PAGE_TITLES: Record<string, string> = {
+  feed: 'MrCine — Descobrir',
+  daily_tip: 'MrCine — Dica do Dia',
+  search: 'MrCine — Buscar Filmes',
+  friends: 'MrCine — Amigos',
+  library: 'MrCine — Biblioteca',
+  profile: 'MrCine — Meu Perfil',
+  onboarding: 'MrCine — Escolher Gêneros',
+};
 
 const navItems = [
   { id: 'feed', label: 'Descobrir', icon: Sparkles },
@@ -52,6 +60,7 @@ export default function App() {
 
   // LGPD Consent state
   const [showConsentModal, setShowConsentModal] = React.useState(false);
+  const [showBugReportModal, setShowBugReportModal] = React.useState(false);
 
   // Auth
   const {
@@ -73,9 +82,6 @@ export default function App() {
   } = useProfile({
     user,
   });
-
-  // Push notifications
-  const pushNotifications = usePushNotifications();
 
   // Friends
   const {
@@ -102,41 +108,6 @@ export default function App() {
     friends,
   });
 
-  // Gamification stats computed from ratings
-  const gamificationStats = React.useMemo(() => {
-    const genreCounts: Record<number, number> = {};
-    const genreSet = new Set<number>();
-    ratings.forEach(r => {
-      if (r.movie?.genre_ids) {
-        r.movie.genre_ids.forEach(id => {
-          genreCounts[id] = (genreCounts[id] || 0) + 1;
-          genreSet.add(id);
-        });
-      }
-    });
-    const maxGenreCount = Math.max(0, ...Object.values(genreCounts));
-    return {
-      totalRatings: ratings.length,
-      lovedCount: ratings.filter(r => r.rating === 'loved').length,
-      genresExplored: genreSet.size,
-      maxGenreCount,
-      watchlistCount: watchlist.length,
-      friendCount: friends.length,
-      level: userProfile.level,
-    };
-  }, [ratings, watchlist, friends, userProfile.level]);
-
-  const {
-    streak, streakInfo, achievements, achievementStats,
-    challenges, challengeStats, leaderboard, userRank,
-    recordActivity, checkAchievements, updateChallengeProgress,
-    isLoading: isGamificationLoading,
-  } = useGamification({
-    user,
-    isPro,
-    ...gamificationStats,
-  });
-
   // Movies
   const {
     currentMovie, activeGenre, setActiveGenre,
@@ -154,6 +125,15 @@ export default function App() {
   // Non-logged-in users are handled directly in the render logic below
   // (no useEffect needed — prevents any data loading before redirect)
 
+  // If user is logged in and on /login, redirect to /app
+  useEffect(() => {
+    if (!user) return;
+    if (window.location.pathname === '/login') {
+      navigate('/app', { replace: true });
+      return;
+    }
+  }, [user, navigate]);
+
   // Handle login action from quiz redirect (?action=login)
   useEffect(() => {
     if (!user) return;
@@ -162,7 +142,7 @@ export default function App() {
     // If redirected from pricing, send them back there
     const redirect = params.get('redirect');
     if (redirect) {
-      window.history.replaceState({}, '', '/login');
+      window.history.replaceState({}, '', '/app');
       navigate(redirect);
       return;
     }
@@ -170,8 +150,8 @@ export default function App() {
     if (params.get('action') === 'login') {
       setIsSignUp(false);
       setCurrentPage('profile');
-      // Clean the URL — keep /login to stay in App, not QuizApp
-      window.history.replaceState({}, '', '/login');
+      // Clean the URL
+      window.history.replaceState({}, '', '/app');
     }
   }, [user]);
 
@@ -181,31 +161,21 @@ export default function App() {
     loadUserData(setRatings, setWatchlist);
   }, [user, loadUserData, setRatings, setWatchlist]);
 
-  // Register Service Worker for push notifications
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then(() => {
-        console.log('[SW] Service Worker registered');
-      }).catch((err) => {
-        console.warn('[SW] Service Worker registration failed:', err);
-      });
-    }
-  }, []);
+  // Track page views + update document.title dynamically
+  // When not logged in, always show Login title (Router-level PageTitle handles /login path)
+  const pageTitle = !user
+    ? 'MrCine — Login'
+    : currentPage ? (PAGE_TITLES[currentPage] || `MrCine — ${currentPage}`) : 'MrCine — Seu Guia de Cinema com IA';
 
-  // Track page views
   useEffect(() => {
     if (currentPage) {
-      trackPageView(`/${currentPage}`, `MrCine - ${currentPage}`);
+      trackPageView(`/${currentPage}`, PAGE_TITLES[currentPage] || `MrCine — ${currentPage}`);
     }
   }, [currentPage, trackPageView]);
 
-  // Check if user needs LGPD consent — only once per session on login
+  // Check if user needs LGPD consent
   useEffect(() => {
     if (user && currentPage !== 'onboarding' && supabase) {
-      // Check localStorage first — if already accepted this session, skip DB query
-      const consentKey = `lgpd_consent_${user.id}`;
-      if (localStorage.getItem(consentKey) === 'accepted') return;
-
       supabase
         .from('user_consents')
         .select('id')
@@ -214,16 +184,28 @@ export default function App() {
         .eq('granted', true)
         .maybeSingle()
         .then(({ data }) => {
-          if (!data) {
-            setShowConsentModal(true);
-          } else {
-            // Already consented in DB — cache it locally so we don't re-check
-            localStorage.setItem(consentKey, 'accepted');
-          }
+          if (!data) setShowConsentModal(true);
         });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // Only re-run when user changes (login/logout), NOT on every page change
+  }, [user, currentPage]);
+
+  // Push notifications for modals
+  const pushNotificationsForModal = React.useMemo(() => ({
+    isSupported: false,
+    permission: 'default' as NotificationPermission,
+    isSubscribed: false,
+    isSubscribing: false,
+    requestAndSubscribe: async (_userId: string) => {},
+    unsubscribe: async (_userId: string) => {},
+  }), []);
+
+  const handleMarkNotificationRead = useCallback(async (id: string) => {
+    if (!user) return;
+    try {
+      const { supabaseService } = await import('./services/supabaseService');
+      await supabaseService.markNotificationAsRead(user.id, id);
+    } catch {}
+  }, [user]);
 
   const getRatingIcon = (rating: string, className = "w-5 h-5") => {
     switch (rating) {
@@ -255,6 +237,7 @@ export default function App() {
           notifications={notifications}
           setShowNotificationsModal={setShowNotificationsModal}
           setShowHelpModal={setShowHelpModal}
+          setShowBugReportModal={setShowBugReportModal}
           isPro={isPro}
           userProfile={userProfile}
         />
@@ -265,16 +248,7 @@ export default function App() {
         <LevelUpModal show={showLevelUpModal} levelData={newLevelData} onClose={() => setShowLevelUpModal(false)} />
       </ErrorBoundary>
       <ErrorBoundary>
-        <NotificationsModal
-          show={showNotificationsModal}
-          notifications={notifications}
-          onClose={() => setShowNotificationsModal(false)}
-          userId={user?.id || null}
-          pushNotifications={pushNotifications}
-          onMarkAsRead={(id) => {
-            if (user) supabaseService.markNotificationAsRead(user.id, id);
-          }}
-        />
+        <NotificationsModal show={showNotificationsModal} notifications={notifications} onClose={() => setShowNotificationsModal(false)} userId={user?.id ?? null} pushNotifications={pushNotificationsForModal} onMarkAsRead={handleMarkNotificationRead} />
       </ErrorBoundary>
       <ErrorBoundary>
         <HelpModal show={showHelpModal} onClose={() => setShowHelpModal(false)} />
@@ -287,6 +261,14 @@ export default function App() {
           movies={oracleMovies}
           isLoading={isOracleLoading}
           mode={oracleMode}
+        />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <BugReportModal
+          show={showBugReportModal}
+          onClose={() => setShowBugReportModal(false)}
+          userId={user?.id ?? null}
+          userEmail={user?.email ?? null}
         />
       </ErrorBoundary>
 
@@ -312,6 +294,9 @@ export default function App() {
         </div>
       )}
 
+      <Helmet>
+        <title>{pageTitle}</title>
+      </Helmet>
       {/* Main Content */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 pt-24 pb-24 md:pb-12 min-h-screen flex flex-col">
         {isInitialLoading ? (
@@ -339,6 +324,8 @@ export default function App() {
               isOracleLoading={isOracleLoading}
               showExportModal={showExportModal}
               setShowExportModal={setShowExportModal}
+              notificationPrefs={notificationPrefs as unknown as Record<string, boolean>}
+              onUpdatePreference={handleUpdatePreference}
               user={user}
               authEmail={authEmail}
               setAuthEmail={setAuthEmail}
@@ -407,8 +394,6 @@ export default function App() {
                 <DailyTipPage
                   dailyTip={dailyTip}
                   dailyTipReason={dailyTipReason}
-                  dailyTipGenre={dailyTipGenre}
-                  setDailyTipGenre={setDailyTipGenre}
                   isLoadingTip={isLoadingTip}
                   generateDailyTip={generateDailyTip}
                   isPro={isPro}
@@ -467,6 +452,8 @@ export default function App() {
                   isOracleLoading={isOracleLoading}
                   showExportModal={showExportModal}
                   setShowExportModal={setShowExportModal}
+                  notificationPrefs={notificationPrefs as unknown as Record<string, boolean>}
+                  onUpdatePreference={handleUpdatePreference}
                   user={user}
                   authEmail={authEmail}
                   setAuthEmail={setAuthEmail}
@@ -481,15 +468,6 @@ export default function App() {
                   handleGoogleAuth={handleGoogleAuth}
                   selectedGenres={selectedGenres}
                   onEditGenres={() => setCurrentPage('onboarding')}
-                  streak={streak}
-                  streakInfo={streakInfo}
-                  achievements={achievements}
-                  achievementStats={achievementStats}
-                  challenges={challenges}
-                  challengeStats={challengeStats}
-                  leaderboard={leaderboard}
-                  userRank={userRank}
-                  isGamificationLoading={isGamificationLoading}
                 />
               </ErrorBoundary>
             )}

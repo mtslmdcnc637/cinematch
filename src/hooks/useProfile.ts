@@ -118,57 +118,67 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
       setDataLoadError(null);
 
       if (user) {
-        supabaseService.getProfile(user.id).then(async (profile) => {
-          if (profile) {
-            if (!profile.email && user.email) {
-              await supabaseService.updateProfile(user.id, { ...profile, email: user.email });
-              profile.email = user.email;
-            }
-            setUserProfile(profile);
-            if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
-              setSelectedGenres(profile.selectedGenres);
-              if (!hasSetInitialPageRef.current) {
-                setCurrentPage('feed');
-                hasSetInitialPageRef.current = true;
+        // Load ALL data in parallel and wait for all to complete
+        // before setting isInitialLoading=false. This prevents the feed
+        // from showing before ratings data is available, which caused
+        // a bug where all movies appeared as "unrated" until the
+        // ratings data loaded asynchronously.
+        const profilePromise = supabaseService.getProfile(user.id)
+          .then(async (profile) => {
+            if (profile) {
+              if (!profile.email && user.email) {
+                await supabaseService.updateProfile(user.id, { ...profile, email: user.email });
+                profile.email = user.email;
+              }
+              setUserProfile(profile);
+              if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
+                setSelectedGenres(profile.selectedGenres);
+                if (!hasSetInitialPageRef.current) {
+                  setCurrentPage('feed');
+                  hasSetInitialPageRef.current = true;
+                }
+              } else {
+                if (!hasSetInitialPageRef.current) {
+                  setCurrentPage('onboarding');
+                  hasSetInitialPageRef.current = true;
+                }
               }
             } else {
               if (!hasSetInitialPageRef.current) {
                 setCurrentPage('onboarding');
                 hasSetInitialPageRef.current = true;
               }
+              setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
             }
-          } else {
-            if (!hasSetInitialPageRef.current) {
-              setCurrentPage('onboarding');
-              hasSetInitialPageRef.current = true;
+          })
+          .catch((err) => {
+            console.error('[loadUserData] getProfile failed:', err);
+            setDataLoadError('Erro ao carregar seus dados. Tente novamente.');
+          });
+
+        const ratingsPromise = supabaseService.getRatings(user.id)
+          .then(data => {
+            if (data && data.length > 0) {
+              ratingsSetter(data);
             }
-            setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
-          }
-          setIsInitialLoading(false);
-        }).catch((err) => {
-          console.error('[loadUserData] getProfile failed:', err);
-          // Do NOT call refreshSession() here — it can invalidate the session
-          // and cause the user to be logged out unexpectedly.
-          // Just show the error and let the user retry.
-          setDataLoadError('Erro ao carregar seus dados. Tente novamente.');
-          setIsInitialLoading(false);
-        });
+          })
+          .catch((err) => {
+            console.error('[loadUserData] getRatings failed:', err);
+          });
 
-        supabaseService.getRatings(user.id).then(data => {
-          if (data && data.length > 0) {
-            ratingsSetter(data);
-          }
-        }).catch((err) => {
-          console.error('[loadUserData] getRatings failed:', err);
-        });
+        const watchlistPromise = supabaseService.getWatchlist(user.id)
+          .then(data => {
+            if (data && data.length > 0) {
+              watchlistSetter(data);
+            }
+          })
+          .catch((err) => {
+            console.error('[loadUserData] getWatchlist failed:', err);
+          });
 
-        supabaseService.getWatchlist(user.id).then(data => {
-          if (data && data.length > 0) {
-            watchlistSetter(data);
-          }
-        }).catch((err) => {
-          console.error('[loadUserData] getWatchlist failed:', err);
-        });
+        // Wait for ALL data to load before hiding the loading spinner
+        Promise.all([profilePromise, ratingsPromise, watchlistPromise])
+          .finally(() => setIsInitialLoading(false));
       } else {
         setUserProfile({ xp: 0, level: 1 });
         setIsInitialLoading(false);

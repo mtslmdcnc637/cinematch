@@ -7,6 +7,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, UserPlus, User, Check, X, Search, RefreshCw, Sparkles, Lock } from 'lucide-react';
 import { Stories } from '../Stories';
+import { toast } from 'sonner';
 
 interface FriendsPageProps {
   friends: any[];
@@ -157,7 +158,13 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
           A IA vai analisar o gosto de todos os selecionados e encontrar o filme perfeito que vai agradar todo mundo.
         </p>
         <button
-          onClick={handleGroupExportForAI}
+          onClick={() => {
+            if (selectedFriends.length === 0) {
+              toast.error('Selecione pelo menos um amigo para gerar o Acordo de Paz');
+              return;
+            }
+            handleGroupExportForAI();
+          }}
           disabled={selectedFriends.length === 0}
           className={`w-full text-white font-bold py-4 px-6 rounded-full transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
             isPro

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2, Pencil, X, Check, Loader2, Bell, Send } from 'lucide-react';
+import { ArrowLeft, Users, UserCheck, UserX, TrendingUp, Mail, Phone, Film, BarChart3, Eye, EyeOff, LogOut, RefreshCw, Key, Plus, Trash2, Pencil, X, Check, Loader2, Bell, Send, MessageSquare, Bug, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 import { invokeEdgeFunction } from '../lib/edgeFunction';
 import { toast } from 'sonner';
 import { LEVELS, getLeagueForLevel } from '../constants';
@@ -54,7 +54,20 @@ interface SecretCode {
   updated_at: string | null;
 }
 
-type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes' | 'notifications';
+type TabId = 'overview' | 'funnel' | 'responses' | 'profiles' | 'codes' | 'notifications' | 'bugs';
+
+// ─── Bug Report Types ───
+interface BugReportRow {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  type: string | null;
+  description: string | null;
+  page_url: string | null;
+  user_agent: string | null;
+  status: string | null;
+  created_at: string | null;
+}
 
 // ─── API Helper ───
 const API_BASE = '/api/admin/secret-codes';
@@ -93,6 +106,11 @@ export default function DashboardPage() {
   const [editingCode, setEditingCode] = useState<SecretCode | null>(null);
   const [editForm, setEditForm] = useState({ code: '', title: '', description: '', movieIds: '' });
   const [codeActionLoading, setCodeActionLoading] = useState<string | null>(null);
+
+  // Bug reports
+  const [bugReports, setBugReports] = useState<BugReportRow[]>([]);
+  const [bugFilter, setBugFilter] = useState<'all' | 'bug' | 'suggestion' | 'other'>('all');
+  const [bugStatusLoading, setBugStatusLoading] = useState<string | null>(null);
 
   // Notification broadcast
   const [notifTitle, setNotifTitle] = useState('');
@@ -138,6 +156,8 @@ export default function DashboardPage() {
 
       // Load secret codes
       loadSecretCodes();
+      // Load bug reports
+      loadBugReports();
     } catch (err) {
       toast.error('Erro ao carregar dados. Verifique sua senha.');
       setIsAuthed(false);
@@ -167,6 +187,20 @@ export default function DashboardPage() {
   };
 
   // ─── Secret Codes CRUD (via API) ────────────────────────────────
+  const loadBugReports = async () => {
+    try {
+      const res = await fetch('/api/bug-reports', {
+        headers: { 'x-admin-password': password },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBugReports(data || []);
+      }
+    } catch (err: any) {
+      console.error('Failed to load bug reports:', err.message);
+    }
+  };
+
   const loadSecretCodes = async () => {
     try {
       const data = await adminFetch('', {}, password);
@@ -383,6 +417,7 @@ export default function DashboardPage() {
     { id: 'profiles', label: 'Usuários', icon: Users },
     { id: 'codes', label: 'Códigos', icon: Key },
     { id: 'notifications', label: 'Notificações', icon: Bell },
+    { id: 'bugs', label: 'Bugs', icon: MessageSquare },
   ];
 
   const funnelData = funnelSteps();
@@ -890,6 +925,206 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ─── BUG REPORTS TAB ─── */}
+        {activeTab === 'bugs' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <Bug className="w-5 h-5 text-red-400" />
+                Relatórios de Bugs ({bugReports.length})
+              </h3>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1 bg-white/5 rounded-lg p-1">
+                  {(['all', 'bug', 'suggestion', 'other'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setBugFilter(f)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                        bugFilter === f
+                          ? 'bg-purple-600 text-white'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      {f === 'all' ? 'Todos' : f === 'bug' ? '🐛 Bugs' : f === 'suggestion' ? '💡 Sugestões' : '📝 Outros'}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={loadBugReports}
+                  className="text-gray-400 hover:text-white p-2 rounded-lg transition-colors"
+                  title="Atualizar"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {(() => {
+              const filtered = bugFilter === 'all' 
+                ? bugReports 
+                : bugReports.filter(r => r.type === bugFilter);
+              const unresolved = filtered.filter(r => r.status !== 'resolved');
+              const resolved = filtered.filter(r => r.status === 'resolved');
+
+              return (
+                <>
+                  {filtered.length === 0 ? (
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                      <Bug className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+                      <p className="text-gray-500">Nenhum relatório encontrado.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {unresolved.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium text-amber-400 flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4" />
+                            Pendentes ({unresolved.length})
+                          </h4>
+                          {unresolved.map(r => (
+                            <div key={r.id} className="bg-white/5 border border-amber-500/20 rounded-xl p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                      r.type === 'bug' ? 'bg-red-500/10 text-red-400' 
+                                        : r.type === 'suggestion' ? 'bg-blue-500/10 text-blue-400' 
+                                        : 'bg-gray-500/10 text-gray-400'
+                                    }`}>
+                                      {r.type === 'bug' ? '🐛 Bug' : r.type === 'suggestion' ? '💡 Sugestão' : '📝 Outro'}
+                                    </span>
+                                    {r.user_email && (
+                                      <span className="text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full">
+                                        {r.user_email}
+                                      </span>
+                                    )}
+                                    {r.page_url && (
+                                      <span className="text-xs text-gray-500 truncate max-w-[200px]" title={r.page_url}>
+                                        {r.page_url.replace(/^https?:\/\/[^/]+/, '')}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-300 whitespace-pre-wrap break-words">{r.description}</p>
+                                  {r.user_agent && (
+                                    <details className="mt-2">
+                                      <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-400 transition-colors">
+                                        Ver dispositivo/página
+                                      </summary>
+                                      <div className="mt-1 bg-black/30 rounded-lg p-2">
+                                        <p className="text-[10px] text-gray-500 break-all">{r.user_agent}</p>
+                                        {r.page_url && <p className="text-[10px] text-gray-500 mt-1 break-all">URL: {r.page_url}</p>}
+                                      </div>
+                                    </details>
+                                  )}
+                                  <p className="text-[10px] text-gray-600 mt-2">
+                                    {r.created_at ? new Date(r.created_at).toLocaleString('pt-BR') : ''}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={async () => {
+                                    setBugStatusLoading(r.id);
+                                    try {
+                                      const res = await fetch('/api/bug-reports/' + r.id, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+                                        body: JSON.stringify({ status: 'resolved' }),
+                                      });
+                                      if (res.ok) {
+                                        setBugReports(prev => prev.map(b => b.id === r.id ? { ...b, status: 'resolved' } : b));
+                                        toast.success('Marcado como resolvido');
+                                      } else {
+                                        toast.error('Erro ao atualizar status');
+                                      }
+                                    } catch (err: any) {
+                                      toast.error('Erro ao atualizar status');
+                                    } finally {
+                                      setBugStatusLoading(null);
+                                    }
+                                  }}
+                                  disabled={bugStatusLoading === r.id}
+                                  className="shrink-0 px-3 py-1.5 text-xs rounded-lg transition-colors bg-green-500/10 text-green-400 hover:bg-green-500/20 flex items-center gap-1 disabled:opacity-50"
+                                  title="Marcar como resolvido"
+                                >
+                                  {bugStatusLoading === r.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                  Resolver
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {resolved.length > 0 && (
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium text-green-400 flex items-center gap-2">
+                            <CheckCircle className="w-4 h-4" />
+                            Resolvidos ({resolved.length})
+                          </h4>
+                          {resolved.map(r => (
+                            <div key={r.id} className="bg-white/5 border border-green-500/20 rounded-xl p-4 opacity-60">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                      r.type === 'bug' ? 'bg-red-500/10 text-red-400' 
+                                        : r.type === 'suggestion' ? 'bg-blue-500/10 text-blue-400' 
+                                        : 'bg-gray-500/10 text-gray-400'
+                                    }`}>
+                                      {r.type === 'bug' ? '🐛 Bug' : r.type === 'suggestion' ? '💡 Sugestão' : '📝 Outro'}
+                                    </span>
+                                    <span className="text-xs bg-green-500/10 text-green-400 px-2 py-0.5 rounded-full">Resolvido</span>
+                                    {r.user_email && (
+                                      <span className="text-xs bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded-full">
+                                        {r.user_email}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-400 whitespace-pre-wrap break-words">{r.description}</p>
+                                  <p className="text-[10px] text-gray-600 mt-2">
+                                    {r.created_at ? new Date(r.created_at).toLocaleString('pt-BR') : ''}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={async () => {
+                                    setBugStatusLoading(r.id);
+                                    try {
+                                      const res = await fetch('/api/bug-reports/' + r.id, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+                                        body: JSON.stringify({ status: 'open' }),
+                                      });
+                                      if (res.ok) {
+                                        setBugReports(prev => prev.map(b => b.id === r.id ? { ...b, status: 'open' } : b));
+                                        toast.success('Reaberto');
+                                      } else {
+                                        toast.error('Erro ao reabrir');
+                                      }
+                                    } catch {
+                                      toast.error('Erro ao reabrir');
+                                    } finally {
+                                      setBugStatusLoading(null);
+                                    }
+                                  }}
+                                  disabled={bugStatusLoading === r.id}
+                                  className="shrink-0 px-3 py-1.5 text-xs rounded-lg transition-colors bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 flex items-center gap-1 disabled:opacity-50"
+                                  title="Reabrir"
+                                >
+                                  <Clock className="w-3.5 h-3.5" />
+                                  Reabrir
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </main>

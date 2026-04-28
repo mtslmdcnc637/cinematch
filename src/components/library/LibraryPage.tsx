@@ -7,6 +7,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, ThumbsUp, ThumbsDown, EyeOff, Bookmark, Trash2, Library, Star } from 'lucide-react';
 import { Movie, Rating, UserRating, WatchlistItem } from '../../types';
+import { MovieDetailModal } from '../feed/MovieDetailModal';
 
 interface LibraryPageProps {
   ratings: UserRating[];
@@ -33,7 +34,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
   onMovieClick,
   onNavigateToFeed,
 }) => {
+  const [detailMovie, setDetailMovie] = React.useState<Movie | null>(null);
   return (
+    <>
     <motion.div
       key="library"
       initial={{ opacity: 0 }}
@@ -119,7 +122,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="group relative glass-card rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:-translate-y-2 cursor-pointer"
-                  onClick={() => onMovieClick?.(movie)}
+                  onClick={() => { onMovieClick?.(movie); setDetailMovie(movie); }}
                 >
                   <div className="aspect-[2/3] relative">
                     <img
@@ -137,7 +140,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                       <h3 className="font-bold text-white leading-tight mb-1 line-clamp-2">{movie.title}</h3>
                       <div className="flex items-center gap-2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity delay-100">
                         <Star className="w-3 h-3 text-amber-400" />
-                        <span>{movie.vote_average.toFixed(1)}</span>
+                        <span>{(movie.vote_average ?? 0).toFixed(1)}</span>
                       </div>
                     </div>
                   </div>
@@ -175,7 +178,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="group relative glass-card rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:-translate-y-2 cursor-pointer"
-                  onClick={() => onMovieClick?.(movie)}
+                  onClick={() => { onMovieClick?.(movie); setDetailMovie(movie); }}
                 >
                   <div className="aspect-[2/3] relative">
                     <img
@@ -196,7 +199,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                       <h3 className="font-bold text-white leading-tight mb-1 line-clamp-2">{movie.title}</h3>
                       <div className="flex items-center gap-2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity delay-100">
                         <Star className="w-3 h-3 text-amber-400" />
-                        <span>{movie.vote_average.toFixed(1)}</span>
+                        <span>{(movie.vote_average ?? 0).toFixed(1)}</span>
                       </div>
                     </div>
                   </div>
@@ -234,7 +237,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="group relative glass-card rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:-translate-y-2 cursor-pointer"
-                  onClick={() => onMovieClick?.(movie)}
+                  onClick={() => { onMovieClick?.(movie); setDetailMovie(movie); }}
                 >
                   <div className="aspect-[2/3] relative">
                     <img
@@ -252,7 +255,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                       <h3 className="font-bold text-white leading-tight mb-1 line-clamp-2">{movie.title}</h3>
                       <div className="flex items-center gap-2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity delay-100">
                         <Star className="w-3 h-3 text-amber-400" />
-                        <span>{movie.vote_average.toFixed(1)}</span>
+                        <span>{(movie.vote_average ?? 0).toFixed(1)}</span>
                       </div>
                     </div>
                   </div>
@@ -263,5 +266,15 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
         )
       )}
     </motion.div>
+      <MovieDetailModal
+        show={!!detailMovie}
+        movie={detailMovie}
+        onClose={() => setDetailMovie(null)}
+        onRate={saveRating}
+        onAddToWatchlist={() => {}}
+        isPro={false}
+        getRating={() => undefined}
+      />
+    </>
   );
 };

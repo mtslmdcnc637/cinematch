@@ -37,16 +37,15 @@ export function useAuth(): UseAuthReturn {
 
   // Track whether the user explicitly requested sign-out, so we can
   // distinguish user-initiated SIGNED_OUT from SDK-triggered ones
-  // (e.g. refresh-token rotation failure) that may be spurious.
+  // (e.g. refresh-token rotation failure).
   const userInitiatedSignOut = useRef(false);
+  // Track whether we already showed the session expired toast to avoid duplicates
+  const sessionExpiredToastShown = useRef(false);
 
   useEffect(() => {
     if (!supabase) return;
 
     // Use getSession() as the source of truth for the initial auth state.
-    // The INITIAL_SESSION event from onAuthStateChange is intentionally
-    // ignored because it can fire with an expired access_token before the
-    // internal token-refresh completes.
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setIsInitialLoading(false);
@@ -58,33 +57,66 @@ export function useAuth(): UseAuthReturn {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // Ignore INITIAL_SESSION — getSession() already handles the initial
-      // state and avoids the race condition described above.
+      // Ignore INITIAL_SESSION — getSession() already handles the initial state
       if (event === 'INITIAL_SESSION') return;
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         userInitiatedSignOut.current = false;
+        sessionExpiredToastShown.current = false;
         setUser(session?.user ?? null);
       } else if (event === 'SIGNED_OUT') {
-        // If the user explicitly signed out, clear immediately.
+        // If the user explicitly signed out, clear immediately
         if (userInitiatedSignOut.current) {
           setUser(null);
           userInitiatedSignOut.current = false;
           return;
         }
 
-        // SDK-triggered SIGNED_OUT — verify the session is truly gone
-        // before accepting it.  A spurious SIGNED_OUT can fire when a
-        // concurrent refreshSession() call causes a refresh-token
-        // rotation conflict; getSession() will still return a valid
-        // session in that case.
-        supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-          if (currentSession?.user) {
-            // Session still exists — ignore the spurious SIGNED_OUT
-            setUser(currentSession.user);
-          } else {
-            // Session is truly gone
+        // SDK-triggered SIGNED_OUT — this typically happens when:
+        // 1. The refresh token is invalid/expired (session truly gone)
+        // 2. A spurious event from concurrent refresh calls (rare)
+        //
+        // We now handle this by checking if we can still get a valid session.
+        // getSession() returns locally cached data, so we also try to actually
+        // refresh the token to verify the session is truly invalid.
+        supabase.auth.getSession().then(async ({ data: { session: currentSession } }) => {
+          if (!currentSession) {
+            // No cached session at all — truly signed out
             setUser(null);
+            if (!sessionExpiredToastShown.current) {
+              sessionExpiredToastShown.current = true;
+              toast.error('Sessão expirada. Faça login novamente.', { duration: 5000 });
+            }
+            return;
+          }
+
+          // We have a cached session, but the SDK said SIGNED_OUT.
+          // This could be a spurious event OR the refresh token could be invalid
+          // while the access token is still within its 1-hour validity.
+          // Try to refresh the token to verify.
+          try {
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+            if (refreshError || !refreshData.session) {
+              // Refresh failed — session is truly invalid
+              // Clear everything
+              await supabase.auth.signOut();
+              setUser(null);
+              if (!sessionExpiredToastShown.current) {
+                sessionExpiredToastShown.current = true;
+                toast.error('Sessão expirada. Faça login novamente.', { duration: 5000 });
+              }
+            } else {
+              // Refresh succeeded — this was a spurious SIGNED_OUT, keep the session
+              setUser(refreshData.session.user);
+            }
+          } catch {
+            // Refresh threw — session is truly invalid
+            try { await supabase.auth.signOut(); } catch {}
+            setUser(null);
+            if (!sessionExpiredToastShown.current) {
+              sessionExpiredToastShown.current = true;
+              toast.error('Sessão expirada. Faça login novamente.', { duration: 5000 });
+            }
           }
         }).catch(() => {
           setUser(null);
@@ -97,8 +129,6 @@ export function useAuth(): UseAuthReturn {
 
   /**
    * Translate cryptic network errors into user-friendly Portuguese messages.
-   * The Supabase SDK surfaces the browser's native TypeError message
-   * ("Failed to fetch") when a request can't reach the server at all.
    */
   const sanitizeAuthError = (error: unknown): string => {
     if (!(error instanceof Error)) return 'Erro na autenticação. Tente novamente.';
@@ -142,19 +172,15 @@ export function useAuth(): UseAuthReturn {
 
         if (isNetworkError && attempt < maxRetries) {
           attempt++;
-          // Exponential backoff: 1s, 2s
           await new Promise(r => setTimeout(r, 1000 * attempt));
           continue;
         }
         toast.error(sanitizeAuthError(error));
         break;
       } finally {
-        if (attempt >= maxRetries || /* success */ true) {
-          setIsAuthLoading(false);
-        }
+        setIsAuthLoading(false);
       }
     }
-    setIsAuthLoading(false);
   };
 
   const handleGoogleAuth = async () => {
@@ -169,12 +195,36 @@ export function useAuth(): UseAuthReturn {
   const handleSignOut = async () => {
     try {
       userInitiatedSignOut.current = true;
-      await supabaseService.signOut();
+      // Clear all local state first
       setUser(null);
+      // Sign out from Supabase
+      if (supabase) {
+        await supabase.auth.signOut({ scope: 'global' });
+      }
+      // Force clear any persisted session data
+      try {
+        localStorage.removeItem(`sb-${new URL(supabase?.auth.settings?.url || 'https://ddrxijoetflsyumjoedv.supabase.co').hostname.split('.')[0]}-auth-token`);
+      } catch {}
+      // Clear all supabase auth keys from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') && key.includes('-auth-token')) {
+          localStorage.removeItem(key);
+        }
+      });
+      // Clear sessionStorage too
+      sessionStorage.clear();
       toast.success('Deslogado com sucesso!');
     } catch {
-      userInitiatedSignOut.current = false;
-      toast.error('Erro ao sair da conta');
+      // Even if signOut fails, clear the local state
+      userInitiatedSignOut.current = true;
+      setUser(null);
+      // Force clear localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-') && key.includes('-auth-token')) {
+          localStorage.removeItem(key);
+        }
+      });
+      toast.success('Deslogado com sucesso!');
     }
   };
 
@@ -195,3 +245,4 @@ export function useAuth(): UseAuthReturn {
     handleSignOut,
   };
 }
+

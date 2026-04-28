@@ -47,7 +47,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
   handleEmailAuth,
   handleGoogleAuth,
 }) => {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(user ? 1 : 0);
 
   const handleContinueWithGenres = async () => {
     if (user) {
