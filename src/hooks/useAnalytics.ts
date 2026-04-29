@@ -3,18 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useEffect, useRef, useCallback } from 'react';
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GtagArgs = any[];
+import { useCallback } from 'react';
 
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     dataLayer: any[];
-    gtag: (...args: GtagArgs) => void;
+    gtag: (...args: any[]) => void;
+    ttq?: {
+      page: () => void;
+      track: (event: string, params?: Record<string, unknown>) => void;
+      identify: (id: string, params?: Record<string, unknown>) => void;
+    };
   }
 }
+
+/** GA4 Measurement ID — kept in sync with index.html */
+const GA_MEASUREMENT_ID = 'G-YZ3N30DV7X';
 
 type EventName =
   | 'quiz_start'
@@ -44,61 +49,17 @@ interface UseAnalyticsReturn {
   trackConversion: (funnelStep: string, params?: TrackEventParams) => void;
 }
 
-function loadGA4Script(measurementId: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (document.getElementById('ga4-script')) {
-      resolve();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.id = 'ga4-script';
-    script.async = true;
-    script.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load GA4 script'));
-    document.head.appendChild(script);
-  });
-}
-
-function initGA4(measurementId: string): void {
-  window.dataLayer = window.dataLayer || [];
-  window.gtag = function (...args: GtagArgs) {
-    window.dataLayer.push(args);
-  };
-  window.gtag('js', new Date());
-  window.gtag('config', measurementId, {
-    send_page_view: false,
-  });
+/**
+ * Returns true when GA4 gtag is available and we are in production.
+ * GA4 is loaded by index.html — the hook does NOT load it again.
+ */
+function isGtagReady(): boolean {
+  return import.meta.env.PROD && typeof window.gtag === 'function';
 }
 
 export function useAnalytics(): UseAnalyticsReturn {
-  const initialized = useRef(false);
-
-  useEffect(() => {
-    if (initialized.current) return;
-
-    const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
-    const isProduction = import.meta.env.PROD;
-
-    if (!measurementId || !isProduction) return;
-
-    initialized.current = true;
-
-    loadGA4Script(measurementId)
-      .then(() => {
-        initGA4(measurementId);
-      })
-      .catch(() => {
-        // Silently handle GA4 load failure
-      });
-  }, []);
-
   const trackEvent = useCallback((eventName: EventName, params?: TrackEventParams) => {
-    const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
-    const isProduction = import.meta.env.PROD;
-
-    if (!measurementId || !isProduction || typeof window.gtag !== 'function') return;
+    if (!isGtagReady()) return;
 
     window.gtag('event', eventName, {
       event_category: params?.category ?? 'engagement',
@@ -108,23 +69,33 @@ export function useAnalytics(): UseAnalyticsReturn {
     });
   }, []);
 
+  /**
+   * Sends a GA4 page_view event AND fires TikTok ttq.page().
+   *
+   * Uses gtag('event', 'page_view', …) which is the recommended SPA
+   * method (instead of gtag('config', …) which was causing the initial
+   * direct-load pageview to be lost).
+   */
   const trackPageView = useCallback((path: string, title?: string) => {
-    const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
-    const isProduction = import.meta.env.PROD;
+    if (!isGtagReady()) return;
 
-    if (!measurementId || !isProduction || typeof window.gtag !== 'function') return;
+    const pageTitle = title ?? document.title;
 
-    window.gtag('config', measurementId, {
+    // GA4 page_view via event (recommended for SPA)
+    window.gtag('event', 'page_view', {
       page_path: path,
-      page_title: title ?? document.title,
+      page_title: pageTitle,
+      page_location: window.location.origin + path,
     });
+
+    // Also fire TikTok Pixel page event (if available)
+    if (typeof window.ttq?.page === 'function') {
+      window.ttq.page();
+    }
   }, []);
 
   const trackConversion = useCallback((funnelStep: string, params?: TrackEventParams) => {
-    const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID;
-    const isProduction = import.meta.env.PROD;
-
-    if (!measurementId || !isProduction || typeof window.gtag !== 'function') return;
+    if (!isGtagReady()) return;
 
     window.gtag('event', 'conversion', {
       event_category: 'funnel',

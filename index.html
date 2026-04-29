@@ -20,6 +20,14 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-YZ3N30DV7X', { send_page_view: false });
+      // Fire initial page_view immediately for direct loads (e.g. /dica from ads)
+      // The React app will also fire page_view on mount, but GA4 deduplicates
+      // when page_path + page_title are identical within the same session.
+      gtag('event', 'page_view', {
+        page_path: window.location.pathname + window.location.search,
+        page_title: document.title,
+        page_location: window.location.href
+      });
     </script>
     <!-- TikTok Pixel -->
     <script>
