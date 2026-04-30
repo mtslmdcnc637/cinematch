@@ -68,13 +68,16 @@ export const DailyTipPage: React.FC<DailyTipPageProps> = ({
           <h2 className="text-3xl font-bold font-display mb-1">Dica do Dia</h2>
           <p className="text-gray-400 text-sm">Uma recomendação especial para você</p>
         </div>
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
           onClick={() => generateDailyTip(true)}
           className="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors border border-white/10"
           title="Recarregar dica"
+          aria-label="Recarregar dica do dia"
         >
           <RefreshCw className="w-5 h-5 text-gray-300" />
-        </button>
+        </motion.button>
       </div>
 
       {isLoadingTip ? (
@@ -93,6 +96,7 @@ export const DailyTipPage: React.FC<DailyTipPageProps> = ({
               <img
                 src={`https://image.tmdb.org/t/p/w780${dailyTip.poster_path}`}
                 alt={dailyTip.title}
+                loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
               />
             ) : (
@@ -105,24 +109,35 @@ export const DailyTipPage: React.FC<DailyTipPageProps> = ({
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
 
             {/* Where to watch */}
-            <div className="absolute top-4 left-4 z-10" onMouseEnter={() => getProviders(dailyTip.id)}>
-              <div className="bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-white/20 transition-colors">
+            <div
+              className="absolute top-4 left-4 z-10"
+              onMouseEnter={() => getProviders(dailyTip.id)}
+              onClick={(e) => { e.stopPropagation(); getProviders(dailyTip.id); }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                className="bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-white/20 transition-colors"
+              >
                 <PlayCircle className="w-5 h-5 text-white" />
-              </div>
+              </motion.div>
               <WhereToWatch movieId={dailyTip.id} providers={providers} />
             </div>
 
             {/* Share Button */}
             {onShare && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onShare(dailyTip);
                 }}
                 className="absolute top-4 right-4 bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 text-white hover:bg-white/20 transition-colors z-10"
+                aria-label="Compartilhar filme"
               >
                 <Share2 className="w-5 h-5" />
-              </button>
+              </motion.button>
             )}
 
             <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col justify-end">

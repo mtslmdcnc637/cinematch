@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
+import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
 import { UserProfile, UserRating, WatchlistItem } from '../types';
@@ -78,9 +78,8 @@ interface UseProfileReturn {
 export function useProfile({ user }: UseProfileParams): UseProfileReturn {
   const [userProfile, setUserProfile] = useState<UserProfile>({ xp: 0, level: 1 });
   const [currentPage, setCurrentPage] = useState('feed');
-  // Track whether the initial page has been set after login,
-  // to prevent loadUserData from overriding the user's current page.
   const hasSetInitialPageRef = useRef(false);
+  const isMountedRef = useRef(true);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
   const [libraryTab, setLibraryTab] = useState<'rated' | 'watchlist' | 'skipped'>('rated');
@@ -118,40 +117,37 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
       setDataLoadError(null);
 
       if (user) {
-        // Load ALL data in parallel and wait for all to complete
-        // before setting isInitialLoading=false. This prevents the feed
-        // from showing before ratings data is available, which caused
-        // a bug where all movies appeared as "unrated" until the
-        // ratings data loaded asynchronously.
         const profilePromise = supabaseService.getProfile(user.id)
           .then(async (profile) => {
+            if (!isMountedRef.current) return;
             if (profile) {
               if (!profile.email && user.email) {
                 await supabaseService.updateProfile(user.id, { ...profile, email: user.email });
                 profile.email = user.email;
               }
-              setUserProfile(profile);
+              safeSetState(setUserProfile, profile);
               if (profile.selectedGenres && profile.selectedGenres.length >= 3) {
-                setSelectedGenres(profile.selectedGenres);
+                safeSetState(setSelectedGenres, profile.selectedGenres);
                 if (!hasSetInitialPageRef.current) {
-                  setCurrentPage('feed');
+                  safeSetState(setCurrentPage, 'feed');
                   hasSetInitialPageRef.current = true;
                 }
               } else {
                 if (!hasSetInitialPageRef.current) {
-                  setCurrentPage('onboarding');
+                  safeSetState(setCurrentPage, 'onboarding');
                   hasSetInitialPageRef.current = true;
                 }
               }
             } else {
               if (!hasSetInitialPageRef.current) {
-                setCurrentPage('onboarding');
+                safeSetState(setCurrentPage, 'onboarding');
                 hasSetInitialPageRef.current = true;
               }
-              setUserProfile({ id: user.id, email: user.email, xp: 0, level: 1 });
+              safeSetState(setUserProfile, { id: user.id, email: user.email, xp: 0, level: 1 });
             }
           })
           .catch((err) => {
+            if (!isMountedRef.current) return;
             console.error('[loadUserData] getProfile failed:', err);
             setDataLoadError('Erro ao carregar seus dados. Tente novamente.');
           });
@@ -159,7 +155,7 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
         const ratingsPromise = supabaseService.getRatings(user.id)
           .then(data => {
             if (data && data.length > 0) {
-              ratingsSetter(data);
+          safeSetState(ratingsSetter, data);
             }
           })
           .catch((err) => {
@@ -169,7 +165,7 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
         const watchlistPromise = supabaseService.getWatchlist(user.id)
           .then(data => {
             if (data && data.length > 0) {
-              watchlistSetter(data);
+              safeSetState(watchlistSetter, data);
             }
           })
           .catch((err) => {
@@ -178,10 +174,10 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
 
         // Wait for ALL data to load before hiding the loading spinner
         Promise.all([profilePromise, ratingsPromise, watchlistPromise])
-          .finally(() => setIsInitialLoading(false));
+          .finally(() => { if (isMountedRef.current) setIsInitialLoading(false); });
       } else {
-        setUserProfile({ xp: 0, level: 1 });
-        setIsInitialLoading(false);
+        safeSetState(setUserProfile, { xp: 0, level: 1 });
+        if (isMountedRef.current) setIsInitialLoading(false);
       }
     },
     [user]
@@ -224,6 +220,15 @@ export function useProfile({ user }: UseProfileParams): UseProfileReturn {
     },
     [user, queryClient]
   );
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  const safeSetState = <T,>(setter: Dispatch<SetStateAction<T>>, value: T) => {
+    if (isMountedRef.current) setter(value);
+  };
 
   const handleSaveGenres = useCallback(async () => {
     if (user) {

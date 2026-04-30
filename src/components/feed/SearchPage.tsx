@@ -70,6 +70,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({
               layout
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
+              whileTap={{ scale: 0.95 }}
               className="group relative glass-card rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:-translate-y-2 cursor-pointer"
               onClick={() => { onMovieClick?.(movie); setDetailMovie(movie); }}
             >
@@ -93,10 +94,18 @@ export const SearchPage: React.FC<SearchPageProps> = ({
                   </div>
                 )}
 
-                <div className="absolute top-3 left-3" onMouseEnter={() => getProviders(movie.id)}>
-                  <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-lg cursor-pointer">
+                <div
+                  className="absolute top-3 left-3"
+                  onMouseEnter={() => getProviders(movie.id)}
+                  onClick={(e) => { e.stopPropagation(); getProviders(movie.id); }}
+                >
+                  <motion.div
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-lg cursor-pointer"
+                  >
                     <PlayCircle className="w-4 h-4 text-white" />
-                  </div>
+                  </motion.div>
                   <WhereToWatch movieId={movie.id} providers={providers} />
                 </div>
 

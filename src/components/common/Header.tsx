@@ -89,25 +89,31 @@ export const Header: React.FC<HeaderProps> = ({
                 );
               })}
             </nav>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.85 }}
               onClick={() => setShowNotificationsModal(true)}
               className="relative w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors"
               title="Notificações"
+              aria-label="Notificações"
             >
               <Bell className="w-5 h-5 text-gray-300" />
               {notifications.some(n => !n.is_read) && (
                 <div className="absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full" />
               )}
-            </button>
+            </motion.button>
             {/* Help dropdown */}
             <div ref={helpRef} className="relative">
-              <button
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.85 }}
                 onClick={() => setHelpOpen(!helpOpen)}
                 className={`w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center transition-colors ${helpOpen ? 'bg-white/10' : ''}`}
                 title="Ajuda"
+                aria-label="Ajuda"
               >
                 <HelpCircle className="w-5 h-5 text-gray-300" />
-              </button>
+              </motion.button>
               {helpOpen && (
                 <motion.div
                   initial={{ opacity: 0, y: -8, scale: 0.95 }}

@@ -70,6 +70,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
             <img
               src={`https://image.tmdb.org/t/p/w780${movie.poster_path}`}
               alt={movie.title}
+              loading="lazy"
               className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105 cursor-pointer"
               onClick={() => setShowDetail(true)}
             />
@@ -84,24 +85,35 @@ export const MovieCard: React.FC<MovieCardProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-80" />
 
           {/* Where to watch */}
-          <div className="absolute top-4 left-4 z-10" onMouseEnter={() => getProviders(movie.id)}>
-            <div className="bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-white/20 transition-colors">
+          <div
+            className="absolute top-4 left-4 z-10"
+            onMouseEnter={() => getProviders(movie.id)}
+            onClick={(e) => { e.stopPropagation(); getProviders(movie.id); }}
+          >
+            <motion.div
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-white/20 transition-colors"
+            >
               <PlayCircle className="w-5 h-5 text-white" />
-            </div>
+            </motion.div>
             <WhereToWatch movieId={movie.id} providers={providers} />
           </div>
 
           {/* Share Button */}
           {onShare && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
               onClick={(e) => {
                 e.stopPropagation();
                 onShare(movie);
               }}
               className="absolute top-4 right-4 bg-black/50 backdrop-blur-md p-3 rounded-full border border-white/10 text-white hover:bg-white/20 transition-colors z-10"
+              aria-label="Compartilhar filme"
             >
               <Share2 className="w-5 h-5" />
-            </button>
+            </motion.button>
           )}
 
           {/* Movie Info */}
@@ -116,7 +128,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({
                 {movie.release_date?.split('-')[0]}
               </span>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight break-words cursor-pointer hover:text-purple-300 transition-colors" onClick={() => setShowDetail(true)}>
+            <h2 role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setShowDetail(true)} className="text-3xl md:text-4xl font-bold text-white mb-2 font-display leading-tight tracking-tight break-words cursor-pointer hover:text-purple-300 transition-colors" onClick={() => setShowDetail(true)}>
               {movie.title}
             </h2>
             <p className="text-gray-300 text-sm leading-relaxed mb-12 line-clamp-4">{movie.overview}</p>

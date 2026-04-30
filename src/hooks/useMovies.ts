@@ -80,6 +80,7 @@ export function useMovies({
 }: UseMoviesParams): UseMoviesReturn {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [feedPage, setFeedPage] = useState(1);
+  const feedPageRef = useRef(1);
   const [activeGenre, setActiveGenre] = useState<number | null>(null);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -134,6 +135,7 @@ export function useMovies({
       lastSyncedGenreRef.current = activeGenre;
       setMovies(feedData);
       setFeedPage(1);
+      feedPageRef.current = 1;
     }
   }, [feedData, activeGenre]);
 
@@ -166,21 +168,29 @@ export function useMovies({
     if (!user || providers[movieId]) return;
     try {
       const data = await tmdbFetch<TmdbProvidersResponse>(`movie/${movieId}/watch/providers`);
-      setProviders(prev => ({ ...prev, [movieId]: data.results?.BR ?? {} }));
+      setProviders(prev => {
+        const next = { ...prev, [movieId]: data.results?.BR ?? {} };
+        // Cap cache at 50 entries to prevent memory bloat in long sessions
+        const keys = Object.keys(next);
+        if (keys.length > 50) {
+          const oldest = keys.slice(0, keys.length - 50);
+          oldest.forEach(k => delete next[Number(k)]);
+        }
+        return next;
+      });
     } catch {
       // Silently handle provider fetch errors
     }
   }, [user, providers]);
 
-  // ── Infinite scroll (kept as useEffect – complex side effects) ─────────
+  // ── Infinite scroll (triggered by unratedMovies running low) ─────────
   const isInfiniteScrollRef = useRef(false);
   useEffect(() => {
-    if (!user) return;
-    if (isInfiniteScrollRef.current) return; // Prevent concurrent fetches
-    if (unratedMovies.length < 5 && !isLoadingMore && !isFeedLoading && movies.length > 0) {
+    if (!user || isInfiniteScrollRef.current) return;
+    if (unratedMovies.length < 5 && movies.length > 0) {
       isInfiniteScrollRef.current = true;
       setIsLoadingMore(true);
-      const nextPage = feedPage + 1;
+      const nextPage = feedPageRef.current + 1;
       const params: Record<string, string> = {
         language: 'pt-BR',
         page: String(nextPage),
@@ -200,7 +210,7 @@ export function useMovies({
             const uniqueNew = newMovies.filter(m => !existingIds.has(m.id));
             return [...prev, ...uniqueNew];
           });
-          setFeedPage(nextPage);
+          feedPageRef.current = nextPage;
         })
         .catch(() => {
           // Silently handle infinite scroll errors
@@ -210,7 +220,7 @@ export function useMovies({
           isInfiniteScrollRef.current = false;
         });
     }
-  }, [user, unratedMovies.length, feedPage, activeGenre, isLoadingMore, isFeedLoading, movies.length]);
+  }, [user, unratedMovies.length, activeGenre, movies.length]);
 
   // ── Generate daily tip (kept as manual function – complex side effects) ─
   const generateDailyTip = useCallback(

@@ -296,12 +296,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               </div>
             </div>
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onSignOut}
               className="bg-white/10 text-white font-bold py-2 px-6 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center gap-2 mx-auto border border-white/10"
             >
               Sair da conta
-            </button>
+            </motion.button>
           </>
         ) : (
           <div className="max-w-md mx-auto w-full glass-card p-8 rounded-[2rem] border border-white/10 text-left">
@@ -465,9 +467,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
-            return (
-              <button
+              return (
+              <motion.button
                 key={tab.id}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
                   isActive
@@ -477,14 +481,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               >
                 <Icon className={`w-4 h-4 ${isActive ? tab.color : ''}`} />
                 {tab.label}
-              </button>
+              </motion.button>
             );
           })}
         </div>
 
         {/* ── Tab: Conquistas ── */}
+        <AnimatePresence mode="wait">
         {activeTab === 'conquistas' && (
-          <div>
+          <motion.div
+            key="conquistas"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             {/* Achievement category filter */}
             <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
               <button
@@ -574,12 +584,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 })}
               </div>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* ── Tab: Desafios ── */}
+        <AnimatePresence mode="wait">
         {activeTab === 'desafios' && (
-          <div>
+          <motion.div
+            key="desafios"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             {isLoadingChallenges ? (
               <div className="space-y-4">
                 {[1,2,3].map(i => (
@@ -644,12 +661,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 })}
               </div>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* ── Tab: Sequência (Streak) ── */}
+        <AnimatePresence mode="wait">
         {activeTab === 'sequencia' && (
-          <div>
+          <motion.div
+            key="sequencia"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             {isLoadingStreak ? (
               <div className="rounded-2xl p-8 animate-pulse border border-white/10 bg-white/5" />
             ) : !streak ? (
@@ -711,12 +735,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* ── Tab: Liga ── */}
+        <AnimatePresence mode="wait">
         {activeTab === 'liga' && (
-          <div>
+          <motion.div
+            key="liga"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             {/* Current League */}
             <div className={`rounded-2xl p-6 border bg-gradient-to-br ${currentLeague.color} bg-opacity-5 text-center mb-6`} style={{ backgroundColor: 'rgba(255,255,255,0.03)' }}>
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500 to-amber-500 flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(168,85,247,0.3)] text-4xl border border-white/10">
@@ -767,8 +798,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 );
               })}
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
       </div>
       </>
       )}

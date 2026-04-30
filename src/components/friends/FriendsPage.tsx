@@ -84,18 +84,24 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
                   <p className="text-xs text-gray-400">Quer ser seu amigo</p>
                 </div>
                 <div className="flex gap-2">
-                  <button
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.85 }}
                     onClick={() => handleRespondRequest(request.id, 'accepted')}
                     className="p-2 bg-emerald-500/20 text-emerald-400 rounded-full hover:bg-emerald-500/30 transition-colors"
+                    aria-label="Aceitar solicitação"
                   >
                     <Check className="w-5 h-5" />
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.85 }}
                     onClick={() => handleRespondRequest(request.id, 'declined')}
                     className="p-2 bg-red-500/20 text-red-400 rounded-full hover:bg-red-500/30 transition-colors"
+                    aria-label="Recusar solicitação"
                   >
                     <X className="w-5 h-5" />
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             ))}
@@ -110,8 +116,9 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
           </div>
         ) : (
           friends.map(friend => (
-            <div
+            <motion.div
               key={friend.id}
+              whileTap={{ scale: 0.97 }}
               onClick={() => {
                 if (selectedFriends.includes(friend.id)) {
                   setSelectedFriends(selectedFriends.filter(id => id !== friend.id));
@@ -135,17 +142,19 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
               <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${selectedFriends.includes(friend.id) ? 'border-purple-500 bg-purple-500' : 'border-gray-500'}`}>
                 {selectedFriends.includes(friend.id) && <Check className="w-4 h-4 text-white" />}
               </div>
-            </div>
+            </motion.div>
           ))
         )}
 
-        <button
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => setShowAddFriendModal(true)}
           className="glass-card p-4 rounded-2xl flex items-center justify-center gap-2 cursor-pointer border-dashed border-white/20 hover:bg-white/5 transition-all text-gray-400 hover:text-white"
         >
           <UserPlus className="w-5 h-5" />
           <span className="font-medium">Adicionar Amigo</span>
-        </button>
+        </motion.button>
       </div>
 
       <div className="glass-card p-8 rounded-[2rem] text-center relative overflow-hidden">
@@ -157,7 +166,9 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
         <p className="text-gray-400 text-sm mb-6">
           A IA vai analisar o gosto de todos os selecionados e encontrar o filme perfeito que vai agradar todo mundo.
         </p>
-        <button
+        <motion.button
+          whileHover={selectedFriends.length > 0 ? { scale: 1.02 } : undefined}
+          whileTap={selectedFriends.length > 0 ? { scale: 0.97 } : undefined}
           onClick={() => {
             if (selectedFriends.length === 0) {
               toast.error('Selecione pelo menos um amigo para gerar o Acordo de Paz');
@@ -174,7 +185,7 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
         >
           {isPro ? <Sparkles className="w-5 h-5" /> : <Lock className="w-4 h-4 text-gray-400" />}
           {isPro ? 'Gerar Acordo de Paz' : 'Desbloquear (PRO)'}
-        </button>
+        </motion.button>
       </div>
 
       {/* Add Friend Modal */}
@@ -236,12 +247,15 @@ export const FriendsPage: React.FC<FriendsPageProps> = ({
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-medium truncate">{result.username || 'Usuário'}</p>
                       </div>
-                      <button
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.85 }}
                         onClick={() => handleSendRequest(result.id)}
                         className="p-2 bg-purple-600/20 text-purple-400 rounded-lg hover:bg-purple-600 hover:text-white transition-all"
+                        aria-label="Enviar solicitação de amizade"
                       >
                         <UserPlus className="w-5 h-5" />
-                      </button>
+                      </motion.button>
                     </div>
                   ))
                 ) : searchUserQuery.length > 2 ? (

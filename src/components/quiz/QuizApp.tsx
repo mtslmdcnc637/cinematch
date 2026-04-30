@@ -609,8 +609,10 @@ export default function QuizApp() {
                       const Icon = option.icon ? IconMap[option.icon] : null;
 
                       return (
-                        <button
+                        <motion.button
                           key={option.id}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.97 }}
                           onClick={() => {
                             if (currentQuestion.type === 'single') {
                               handleAnswer(currentQuestion.id, option.id);
@@ -640,7 +642,7 @@ export default function QuizApp() {
                           }`}>
                             {isSelected && <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 text-white" />}
                           </div>
-                        </button>
+                        </motion.button>
                       );
                     })}
                   </div>
@@ -648,7 +650,9 @@ export default function QuizApp() {
               </div>
 
               <div className="mt-4 sm:mt-8 pt-4 sm:pt-6 border-t border-white/10">
-                <button
+                <motion.button
+                  whileHover={!isNextDisabled() ? { scale: 1.02 } : undefined}
+                  whileTap={!isNextDisabled() ? { scale: 0.97 } : undefined}
                   onClick={handleNextQuestion}
                   disabled={isNextDisabled()}
                   className={`w-full py-3.5 sm:py-4 rounded-2xl text-base sm:text-lg font-bold transition-all ${
@@ -658,7 +662,7 @@ export default function QuizApp() {
                   }`}
                 >
                   Continuar
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           )}

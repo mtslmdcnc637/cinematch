@@ -26,10 +26,7 @@ import { LibraryPage } from './components/library/LibraryPage';
 import { ProfilePage } from './components/profile/ProfilePage';
 import { FriendsPage } from './components/friends/FriendsPage';
 import { OracleModal } from './components/oracle/OracleModal';
-import { ConsentModal } from './components/common/ConsentModal';
-import { AppInstallBanner } from './components/common/AppInstallBanner';
-import { supabase } from './lib/supabase';
-import { Helmet } from 'react-helmet-async';
+import { usePushNotifications } from './hooks/usePushNotifications';
 
 // Map currentPage to friendly GA titles
 const PAGE_TITLES: Record<string, string> = {
@@ -125,14 +122,19 @@ export default function App() {
   // Non-logged-in users are handled directly in the render logic below
   // (no useEffect needed — prevents any data loading before redirect)
 
-  // If user is logged in and on /login, redirect to /app
+  // If user is logged in and on /login, redirect to /app (single redirect, no data load until on /app)
   useEffect(() => {
     if (!user) return;
-    if (window.location.pathname === '/login') {
+    const pathname = window.location.pathname;
+    if (pathname === '/login') {
       navigate('/app', { replace: true });
       return;
     }
-  }, [user, navigate]);
+    // Load user data only when actually on /app (not during redirect)
+    if (pathname === '/app' || pathname === '/') {
+      loadUserData(setRatings, setWatchlist);
+    }
+  }, [user, navigate, loadUserData, setRatings, setWatchlist]);
 
   // Handle login action from quiz redirect (?action=login)
   useEffect(() => {
@@ -150,16 +152,9 @@ export default function App() {
     if (params.get('action') === 'login') {
       setIsSignUp(false);
       setCurrentPage('profile');
-      // Clean the URL
       window.history.replaceState({}, '', '/app');
     }
   }, [user]);
-
-  // Load user data when user changes
-  useEffect(() => {
-    if (!user) return;
-    loadUserData(setRatings, setWatchlist);
-  }, [user, loadUserData, setRatings, setWatchlist]);
 
   // Track page views + update document.title dynamically
   // When not logged in, always show Login title (Router-level PageTitle handles /login path)
@@ -189,15 +184,8 @@ export default function App() {
     }
   }, [user, currentPage]);
 
-  // Push notifications for modals
-  const pushNotificationsForModal = React.useMemo(() => ({
-    isSupported: false,
-    permission: 'default' as NotificationPermission,
-    isSubscribed: false,
-    isSubscribing: false,
-    requestAndSubscribe: async (_userId: string) => {},
-    unsubscribe: async (_userId: string) => {},
-  }), []);
+  // Push notifications (real hook — enables push toggle in notifications modal)
+  const pushNotifications = usePushNotifications();
 
   const handleMarkNotificationRead = useCallback(async (id: string) => {
     if (!user) return;
@@ -248,7 +236,7 @@ export default function App() {
         <LevelUpModal show={showLevelUpModal} levelData={newLevelData} onClose={() => setShowLevelUpModal(false)} />
       </ErrorBoundary>
       <ErrorBoundary>
-        <NotificationsModal show={showNotificationsModal} notifications={notifications} onClose={() => setShowNotificationsModal(false)} userId={user?.id ?? null} pushNotifications={pushNotificationsForModal} onMarkAsRead={handleMarkNotificationRead} />
+        <NotificationsModal show={showNotificationsModal} notifications={notifications} onClose={() => setShowNotificationsModal(false)} userId={user?.id ?? null} pushNotifications={pushNotifications} onMarkAsRead={handleMarkNotificationRead} />
       </ErrorBoundary>
       <ErrorBoundary>
         <HelpModal show={showHelpModal} onClose={() => setShowHelpModal(false)} />
@@ -513,8 +501,9 @@ export default function App() {
               const Icon = item.icon;
               const isActive = currentPage === item.id;
               return (
-                <button
+                <motion.button
                   key={item.id}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => setCurrentPage(item.id)}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all ${
                     isActive
@@ -524,7 +513,7 @@ export default function App() {
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-[9px] font-medium">{item.label}</span>
-                </button>
+                </motion.button>
               );
             })}
           </div>

@@ -88,12 +88,14 @@ export const LevelUpModal: React.FC<LevelUpModalProps> = ({ show, levelData, onC
               <p className="text-gray-400 mb-8">Continue avaliando filmes para desbloquear novas conquistas.</p>
             )}
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onClose}
-              className="w-full bg-white text-black font-bold py-4 rounded-2xl hover:scale-105 transition-transform"
+              className="w-full bg-white text-black font-bold py-4 rounded-2xl"
             >
               {isLeagueUp ? 'Vamos lá!' : 'Incrível!'}
-            </button>
+            </motion.button>
           </motion.div>
         </motion.div>
       </motion.div>
@@ -176,7 +178,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                         : 'Ative para receber alertas mesmo com o app fechado'}
                     </p>
                   </div>
-                  <button
+                   <motion.button
+                    whileTap={{ scale: 0.9 }}
                     onClick={handlePushToggle}
                     disabled={isSubscribing}
                     className={`relative w-12 h-7 rounded-full transition-all duration-300 ${
@@ -186,7 +189,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                     <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${
                       isSubscribed ? 'translate-x-5.5' : 'translate-x-0.5'
                     }`} />
-                  </button>
+                  </motion.button>
                 </div>
               </div>
             )}
@@ -236,12 +239,14 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
               </div>
             )}
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
               onClick={onClose}
               className="w-full py-3 mt-6 bg-purple-600 hover:bg-purple-700 text-white rounded-xl font-medium transition-colors"
             >
               Fechar
-            </button>
+            </motion.button>
           </motion.div>
         </div>
       </motion.div>
@@ -337,12 +342,14 @@ export const HelpModal: React.FC<HelpModalProps> = ({ show, onClose }) => (
           </div>
 
           <div className="mt-10 text-center">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onClose}
-              className="bg-white text-black font-bold py-4 px-10 rounded-full hover:scale-105 transition-transform"
+              className="bg-white text-black font-bold py-4 px-10 rounded-full"
             >
               Entendi, vamos lá!
-            </button>
+            </motion.button>
           </div>
         </motion.div>
         </div>

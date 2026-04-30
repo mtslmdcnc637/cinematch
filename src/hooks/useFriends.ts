@@ -59,9 +59,10 @@ export function useFriends({ user, currentPage }: UseFriendsParams): UseFriendsR
   const [isSearchingUsers, setIsSearchingUsers] = useState(false);
   const [showAddFriendModal, setShowAddFriendModal] = useState(false);
 
-  // Fetch friends and requests when on friends page
+  // Fetch friends and requests whenever user is logged in
+  // Also re-fetches when navigating to the friends page explicitly
   useEffect(() => {
-    if (user && currentPage === 'friends') {
+    if (user) {
       supabaseService.getFriends(user.id)
         .then(data => setFriends(data as FriendWithProfile[]))
         .catch(() => {});

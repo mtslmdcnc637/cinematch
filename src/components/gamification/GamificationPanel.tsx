@@ -48,8 +48,10 @@ export const GamificationPanel: React.FC<GamificationPanelProps> = ({
       {/* Tab Navigation */}
       <div className="flex gap-1 mb-6 bg-white/5 rounded-xl p-1">
         {tabs.map(tab => (
-          <button
+          <motion.button
             key={tab.id}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.id
@@ -59,7 +61,7 @@ export const GamificationPanel: React.FC<GamificationPanelProps> = ({
           >
             <tab.icon className="w-4 h-4" />
             <span className="hidden sm:inline">{tab.label}</span>
-          </button>
+          </motion.button>
         ))}
       </div>
 
@@ -181,10 +183,14 @@ export const GamificationPanel: React.FC<GamificationPanelProps> = ({
               )}
 
               {streakInfo?.status === 'frozen' && isPro && (
-                <button className="mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-full transition-colors flex items-center gap-2 mx-auto">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="mt-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-full transition-colors flex items-center gap-2 mx-auto"
+                >
                   <Snowflake className="w-4 h-4" />
                   Usar Freeze ({3 - (streak?.streak_freeze_count || 0)} restantes)
-                </button>
+                </motion.button>
               )}
 
               {streakInfo?.status === 'frozen' && !isPro && (

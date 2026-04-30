@@ -75,23 +75,16 @@ export default function Router() {
   const [userId, setUserId] = useState<string | null | undefined>();
 
   useEffect(() => {
-    // Capture referral code from URL (?ref=xxx) on first load
     captureReferral();
 
     if (!supabase) {
-      // No supabase — not logged in
       setUserId(null);
       return;
     }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
     });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUserId(session?.user?.id ?? null);
-    });
-
-    return () => subscription.unsubscribe();
+    // Auth state changes are handled by useAuth in App.tsx — no duplicate listener needed here
   }, []);
 
   return (

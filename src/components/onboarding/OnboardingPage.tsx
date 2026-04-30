@@ -108,22 +108,26 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
           </div>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => setStep(1)}
-              className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+              className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
             >
               Criar minha conta
               <Sparkles className="w-5 h-5" />
-            </button>
-            <button
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
               onClick={() => {
                 setIsSignUp(false);
                 onLogin();
               }}
-              className="group relative inline-flex items-center justify-center gap-3 bg-white/10 text-white px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:bg-white/20 hover:scale-105"
+              className="group relative inline-flex items-center justify-center gap-3 bg-white/10 text-white px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 hover:bg-white/20"
             >
               Já tenho conta
-            </button>
+            </motion.button>
           </div>
         </motion.div>
       ) : (
@@ -171,6 +175,8 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleContinueWithGenres}
             disabled={selectedGenres.length < 3}
             className="group relative inline-flex items-center justify-center gap-3 bg-white text-black px-10 py-5 rounded-full font-bold text-lg transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"

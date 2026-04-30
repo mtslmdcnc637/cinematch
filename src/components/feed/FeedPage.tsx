@@ -27,20 +27,24 @@ interface FeedPageProps {
 
 const GenreFilter = ({ active, onChange }: { active: number | null; onChange: (id: number | null) => void }) => (
   <div className="flex overflow-x-auto no-scrollbar gap-2 py-4 px-4 -mx-4 mb-4 w-full max-w-md">
-    <button
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
       onClick={() => onChange(null)}
       className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors border ${active === null ? 'bg-purple-600 text-white border-purple-500' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
     >
       Todos
-    </button>
+    </motion.button>
     {GENRES.map(g => (
-      <button
+      <motion.button
         key={g.id}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
         onClick={() => onChange(g.id)}
         className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-medium transition-colors border ${active === g.id ? 'bg-purple-600 text-white border-purple-500' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
       >
         {g.name}
-      </button>
+      </motion.button>
     ))}
   </div>
 );
@@ -95,12 +99,14 @@ export const FeedPage: React.FC<FeedPageProps> = ({
           </div>
           <h3 className="text-3xl font-bold mb-4 font-display">Você zerou o feed!</h3>
           <p className="text-gray-400 mb-8 text-lg">Volte mais tarde ou mude o gênero para novas recomendações.</p>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setActiveGenre(null)}
-            className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform hover:scale-105"
+            className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform"
           >
             Ver Todos os Gêneros
-          </button>
+          </motion.button>
         </div>
       )}
     </motion.div>

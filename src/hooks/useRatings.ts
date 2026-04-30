@@ -8,7 +8,7 @@ import { useMutation } from '@tanstack/react-query';
 import { supabaseService } from '../services/supabaseService';
 import { gamificationService } from '../services/gamificationService';
 import { fetchMovieById, searchMovies } from '../services/tmdbService';
-import { LEVELS, getLevelForXP, calculateEffectiveXP, isLeagueTransition, getLeagueForLevel, getDailyRatingXPMultiplier, XP_SOURCES, ACHIEVEMENTS, TIER_LABELS } from '../constants';
+import { LEVELS, getLevelForXP, calculateEffectiveXP, getLeagueForLevel, getDailyRatingXPMultiplier, XP_SOURCES, ACHIEVEMENTS, TIER_LABELS } from '../constants';
 import { Movie, Rating, UserRating, WatchlistItem, UserProfile, type OracleResult } from '../types';
 import { toast } from 'sonner';
 
@@ -242,26 +242,32 @@ export function useRatings({
         else if (rating === 'liked') baseXP = XP_SOURCES.RATING_LIKED;
         else if (rating === 'disliked') baseXP = XP_SOURCES.RATING_DISLIKED;
 
-        setUserProfile(prev => {
-          // Apply league multiplier + PRO bonus
-          let xpGained = calculateEffectiveXP(baseXP, prev.level, isPro);
+        // Calculate effective XP with league multiplier + PRO bonus
+        let effectiveXP = calculateEffectiveXP(baseXP, userProfile.level, isPro);
 
-          // Soft cap: check daily rating count and apply multiplier
-          if (user) {
-            gamificationService.getDailyXPTracking(user.id).then(tracking => {
-              const ratingsToday = tracking?.rating_count || 0;
-              const softCapMultiplier = getDailyRatingXPMultiplier(ratingsToday, isPro);
-              if (softCapMultiplier < 1.0 && softCapMultiplier > 0) {
-                // Partial XP — apply soft cap
-                xpGained = Math.floor(xpGained * softCapMultiplier);
-              } else if (softCapMultiplier === 0) {
-                // Zero XP from ratings (cap exceeded)
-                xpGained = 0;
-              }
-            }).catch(() => {}); // Fail open — don't block rating on tracking error
+        // Soft cap: fetch tracking data FIRST, then apply before state update
+        let softCapApplied = false;
+        if (user && baseXP > 0) {
+          try {
+            const tracking = await gamificationService.getDailyXPTracking(user.id);
+            const ratingsToday = tracking?.rating_count || 0;
+            const softCapMultiplier = getDailyRatingXPMultiplier(ratingsToday, isPro);
+            if (softCapMultiplier < 1.0 && softCapMultiplier > 0) {
+              effectiveXP = Math.floor(effectiveXP * softCapMultiplier);
+              softCapApplied = true;
+            } else if (softCapMultiplier === 0) {
+              effectiveXP = 0;
+              softCapApplied = true;
+            }
+          } catch {
+            // Fail open — don't block rating on tracking error
           }
+        }
 
-          const newXp = prev.xp + xpGained;
+        const finalXP = effectiveXP;
+
+        setUserProfile(prev => {
+          const newXp = prev.xp + finalXP;
 
           // CASCADE FIX: Find highest level reached (not just level+1)
           const reachedLevel = getLevelForXP(newXp);
@@ -277,22 +283,17 @@ export function useRatings({
           if (user) {
             supabaseService.updateXp(user.id, newXp, newLevel).catch(() => {});
             // Track daily XP for soft cap
-            if (xpGained > 0) {
-              gamificationService.trackRatingXP(user.id, xpGained).catch(() => {});
+            if (finalXP > 0) {
+              gamificationService.trackRatingXP(user.id, finalXP).catch(() => {});
             }
             // Update streak on activity
             gamificationService.updateStreakOnActivity(user.id, isPro).catch(() => {});
-            // Update challenge progress for rating challenges
-            gamificationService.updateChallengeProgress(user.id, 'daily_rate_3').catch(() => {});
-            gamificationService.updateChallengeProgress(user.id, 'daily_rate_5').catch(() => {});
-            gamificationService.updateChallengeProgress(user.id, 'daily_rate_8').catch(() => {});
-            if (rating === 'loved') {
-              gamificationService.updateChallengeProgress(user.id, 'daily_love_2').catch(() => {});
-            }
-            gamificationService.updateChallengeProgress(user.id, 'weekly_rate_15').catch(() => {});
-            gamificationService.updateChallengeProgress(user.id, 'weekly_rate_25').catch(() => {});
-            gamificationService.updateChallengeProgress(user.id, 'monthly_rate_50').catch(() => {});
-            gamificationService.updateChallengeProgress(user.id, 'monthly_rate_100').catch(() => {});
+            // Update challenge progress for rating challenges (batched via Promise.all)
+            const challengeKeys = ['daily_rate_3', 'daily_rate_5', 'daily_rate_8', 'weekly_rate_15', 'weekly_rate_25', 'monthly_rate_50', 'monthly_rate_100'];
+            if (rating === 'loved') challengeKeys.push('daily_love_2');
+            Promise.all(challengeKeys.map(key =>
+              gamificationService.updateChallengeProgress(user.id, key).catch(() => {})
+            ));
             // Check and unlock achievements (fire-and-forget)
             gamificationService.checkAndUnlockAchievements(user.id, {
               totalRatings: newRatings.length,
@@ -302,7 +303,7 @@ export function useRatings({
                 (r.movie?.genre_ids || []).forEach(id => { acc[id] = (acc[id] || 0) + 1; });
                 return acc;
               }, {} as Record<number, number>))),
-              currentStreak: 0, // Will be checked separately
+              currentStreak: 0,
               friendCount: 0,
               watchlistCount: 0,
               level: newLevel,
@@ -325,21 +326,15 @@ export function useRatings({
 
           return { ...prev, xp: newXp, level: newLevel };
         });
-      }
 
-      // Visual feedback with effective XP shown
-      if (rating !== 'not_seen') {
-        const effectiveXP = calculateEffectiveXP(
-          rating === 'loved' ? XP_SOURCES.RATING_LOVED : rating === 'liked' ? XP_SOURCES.RATING_LIKED : XP_SOURCES.RATING_DISLIKED,
-          userProfile.level,
-          isPro
-        );
+        // Visual feedback with ACTUAL effective XP (matches what was saved)
         const league = getLeagueForLevel(userProfile.level);
         const multiplierText = league.xpMultiplier > 1 ? ` (${league.xpMultiplier}x ${league.name})` : '';
+        const softCapText = softCapApplied ? ' (cap diário)' : '';
 
-        if (rating === 'loved') toast.success(`Você amou ${movie.title}! +${effectiveXP} XP${multiplierText}`, { icon: '💖' });
-        else if (rating === 'liked') toast.success(`Você gostou de ${movie.title} +${effectiveXP} XP${multiplierText}`, { icon: '👍' });
-        else if (rating === 'disliked') toast(`Você não gostou +${effectiveXP} XP${multiplierText}`, { icon: '👎' });
+        if (rating === 'loved') toast.success(`Você amou ${movie.title}! +${finalXP} XP${multiplierText}${softCapText}`, { icon: '💖' });
+        else if (rating === 'liked') toast.success(`Você gostou de ${movie.title} +${finalXP} XP${multiplierText}${softCapText}`, { icon: '👍' });
+        else if (rating === 'disliked') toast(`Você não gostou +${finalXP} XP${multiplierText}${softCapText}`, { icon: '👎' });
       } else {
         toast('Ocultado', { icon: '🙈' });
       }

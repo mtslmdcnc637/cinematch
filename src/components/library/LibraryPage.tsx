@@ -66,7 +66,8 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
       </div>
 
       <div className="flex gap-6 mb-8 border-b border-white/10 pb-4 overflow-x-auto hide-scrollbar">
-        <button
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={() => setLibraryTab('rated')}
           className={`text-lg font-medium transition-colors relative whitespace-nowrap ${libraryTab === 'rated' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
         >
@@ -74,8 +75,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
           {libraryTab === 'rated' && (
             <motion.div layoutId="lib-tab" className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-purple-500" />
           )}
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={() => setLibraryTab('watchlist')}
           className={`text-lg font-medium transition-colors relative whitespace-nowrap ${libraryTab === 'watchlist' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
         >
@@ -83,8 +85,9 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
           {libraryTab === 'watchlist' && (
             <motion.div layoutId="lib-tab" className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-purple-500" />
           )}
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
           onClick={() => setLibraryTab('skipped')}
           className={`text-lg font-medium transition-colors relative whitespace-nowrap ${libraryTab === 'skipped' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
         >
@@ -92,7 +95,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
           {libraryTab === 'skipped' && (
             <motion.div layoutId="lib-tab" className="absolute -bottom-[17px] left-0 right-0 h-0.5 bg-purple-500" />
           )}
-        </button>
+        </motion.button>
       </div>
 
       {libraryTab === 'rated' && (
@@ -102,12 +105,14 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
             <h3 className="text-2xl font-bold mb-3 font-display">Sua biblioteca está vazia</h3>
             <p className="text-gray-400 mb-8 max-w-md mx-auto">Comece a avaliar filmes no feed para construir sua coleção pessoal.</p>
             {onNavigateToFeed && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={onNavigateToFeed}
-                className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform hover:scale-105"
+                className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform"
               >
                 Descobrir Filmes
-              </button>
+              </motion.button>
             )}
           </div>
         ) : (
@@ -121,6 +126,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   layout
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
+                  whileTap={{ scale: 0.95 }}
                   className="group relative glass-card rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:-translate-y-2 cursor-pointer"
                   onClick={() => { onMovieClick?.(movie); setDetailMovie(movie); }}
                 >
@@ -128,6 +134,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                     <img
                       src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
                       alt={movie.title}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
@@ -158,12 +165,14 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
             <h3 className="text-2xl font-bold mb-3 font-display">Sua lista está vazia</h3>
             <p className="text-gray-400 mb-8 max-w-md mx-auto">Adicione filmes que você quer ver depois enquanto navega pelo feed.</p>
             {onNavigateToFeed && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={onNavigateToFeed}
-                className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform hover:scale-105"
+                className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform"
               >
                 Descobrir Filmes
-              </button>
+              </motion.button>
             )}
           </div>
         ) : (
@@ -177,6 +186,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   layout
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
+                  whileTap={{ scale: 0.95 }}
                   className="group relative glass-card rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:-translate-y-2 cursor-pointer"
                   onClick={() => { onMovieClick?.(movie); setDetailMovie(movie); }}
                 >
@@ -184,16 +194,20 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                     <img
                       src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
                       alt={movie.title}
+                      loading="lazy"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
 
-                    <button
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.8, rotate: -15 }}
                       onClick={(e) => removeFromWatchlist(movie.id, e)}
                       className="absolute top-3 right-3 bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 shadow-lg hover:bg-red-500/20 hover:text-red-400 transition-colors z-10"
+                      aria-label="Remover da lista"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </motion.button>
 
                     <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-2 group-hover:translate-y-0 transition-transform">
                       <h3 className="font-bold text-white leading-tight mb-1 line-clamp-2">{movie.title}</h3>
@@ -217,12 +231,14 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
             <h3 className="text-2xl font-bold mb-3 font-display">Nenhum filme pulado</h3>
             <p className="text-gray-400 mb-8 max-w-md mx-auto">Os filmes que você pular ou não gostar aparecerão aqui.</p>
             {onNavigateToFeed && (
-              <button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={onNavigateToFeed}
-                className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform hover:scale-105"
+                className="bg-white text-black px-8 py-4 rounded-full font-bold transition-transform"
               >
                 Descobrir Filmes
-              </button>
+              </motion.button>
             )}
           </div>
         ) : (
@@ -236,6 +252,7 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                   layout
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
+                  whileTap={{ scale: 0.95 }}
                   className="group relative glass-card rounded-2xl overflow-hidden transition-all duration-500 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:-translate-y-2 cursor-pointer"
                   onClick={() => { onMovieClick?.(movie); setDetailMovie(movie); }}
                 >
@@ -243,7 +260,8 @@ export const LibraryPage: React.FC<LibraryPageProps> = ({
                     <img
                       src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
                       alt={movie.title}
-                      className="w-full h-full object-cover opacity-50 grayscale"
+                      loading="lazy"
+                      className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
 
