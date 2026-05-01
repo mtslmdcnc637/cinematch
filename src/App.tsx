@@ -26,7 +26,11 @@ import { LibraryPage } from './components/library/LibraryPage';
 import { ProfilePage } from './components/profile/ProfilePage';
 import { FriendsPage } from './components/friends/FriendsPage';
 import { OracleModal } from './components/oracle/OracleModal';
+import { ConsentModal } from './components/common/ConsentModal';
+import { AppInstallBanner } from './components/common/AppInstallBanner';
 import { usePushNotifications } from './hooks/usePushNotifications';
+import { supabase } from './lib/supabase';
+import { Helmet } from 'react-helmet-async';
 
 // Map currentPage to friendly GA titles
 const PAGE_TITLES: Record<string, string> = {
