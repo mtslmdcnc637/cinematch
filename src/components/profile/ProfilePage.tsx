@@ -4,7 +4,7 @@
  */
 
 import React, { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User, Bot, Sparkles, Lock, Camera, Loader2, Trophy, Flame, Target, Medal, Swords, Crown, Star } from 'lucide-react';
 import { UserProfile, UserRating, WatchlistItem, type OracleResult, type Movie, type UserAchievement, type UserStreak, type UserChallenge } from '../../types';
