@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "pro.mrcine.app",
+    "sha256_cert_fingerprint": "18:B4:02:3C:98:8F:D6:AD:26:C2:EC:A7:FE:88:4B:C7:60:5C:11:A2:36:48:C0:2D:0F:77:4D:C7:C6:FB:C5:7D"
+  }
+}]

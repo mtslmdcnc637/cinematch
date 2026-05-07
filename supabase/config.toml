@@ -1,0 +1,26 @@
+# A project ref is required for deploying to Supabase
+# Run `supabase link --project-ref ddrxijoetflsyumjoedv` to link
+
+[functions.tmdb-proxy]
+verify_jwt = false
+
+[functions.oracle]
+verify_jwt = false
+
+[functions.stripe-checkout]
+verify_jwt = false
+
+[functions.stripe-portal]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.admin-stats]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
